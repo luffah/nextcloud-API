@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Define requests responses (automatically check if the request is OK)
+"""
 try:
     from json import JSONDecodeError
 except ImportError:
@@ -6,11 +9,17 @@ except ImportError:
 
 
 class BaseResponse(object):
+    """
+    Base Response that take HTTP reponse and take the following attrs
+    - raw         : the raw response
+    - status_code : the HTTP code
+    - data        : the asked data (json or xml value)
+    - is_ok       : True if the request is succesfully achieved
+    """
 
     def __init__(self, response, data=None, json_output=True,
                  status_code=None, success_code=None, **kwargs):
         self.raw = response
-        print(self.raw.content)
         self.data = data or (
             response.json() if json_output else response.content.decode('UTF-8')
         )
@@ -32,17 +41,23 @@ class BaseResponse(object):
         self.is_ok = self.status_code in success_codes
 
     def __repr__(self):
-        is_ok_str = 'OK' if self.is_ok else 'Failed'
-        return '<{}: Status: {}>'.format(self.__class__.__name__, is_ok_str)
+        is_ok_str = "OK" if self.is_ok else "Failed"
+        return "<{}: Status: {}>".format(self.__class__.__name__, is_ok_str)
 
 
 class OCSResponse(BaseResponse):
-    """ Response class for OCS api methods """
+    """
+    Response class for OCS api methods
+    Add some attributes:
+    - meta      : ocs json metadata
+    - full_data : json data of the ocs response
+    """
 
     def __init__(self, response, json_output=True, success_code=None):
         data = None
         full_data = None
         meta = None
+        status_code = None
 
         if (success_code or json_output):
             try:

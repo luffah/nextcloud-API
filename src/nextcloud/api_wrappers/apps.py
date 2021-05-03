@@ -16,7 +16,9 @@ class Apps(base.ProvisioningApiWrapper):
         :param filter: str, optional "enabled" or "disabled"
         :return:
         """
-        params = {"filter": filter}
+        params = {
+            "filter": filter
+        }
         return self.requester.get(params=params)
 
     def get_app(self, app_id):

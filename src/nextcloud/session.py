@@ -7,6 +7,8 @@ from .compat import encode_requests_password
 class NextCloudConnectionError(Exception):
     """ A connection error occurred """
 
+class NextCloudLoginError(Exception):
+    """ A login error occurred """
 
 def catch_connection_error(func):
 
@@ -27,6 +29,7 @@ class Session(object):
     def __init__(self, url=None, user=None, password=None, auth=None, session_kwargs=None):
         self.session = None
         self.auth = None
+        self.user = None
         self._set_credentials(user, password, auth)
         self.url = url
         self._session_kwargs = session_kwargs or {}
@@ -48,20 +51,21 @@ class Session(object):
 
     def request(self, method, url, **kwargs):
         if self.session:
-            return (self.session.request)(method=method, url=url, **kwargs)
+            return self.session.request(method=method, url=url, **kwargs)
         else:
             _kwargs = self._session_kwargs
             _kwargs.update(kwargs)
             if not kwargs.get('auth', False):
                 _kwargs['auth'] = self.auth
-            return (requests.request)(method, url, **_kwargs)
+            return requests.request(method, url, **_kwargs)
 
-    def login(self, user=None, password=None, auth=None):
+    def login(self, user=None, password=None, auth=None, client=None):
         """Create a stable session on the server.
 
         :param user_id: user id
         :param password: password
         :param auth: object for any auth method
+        :param client: object for any auth method
         :raises: HTTPResponseError in case an HTTP error status was returned
         """
         self.session = requests.Session()
@@ -70,14 +74,18 @@ class Session(object):
 
         self._set_credentials(user, password, auth)
         self.session.auth = self.auth
-        try:
-            resp = self.session.post(self.url)
-        except requests.exceptions.SSLError as e:
-            self.logout()
-            raise e
-        except Exception as e:
-            self.logout()
-            raise e
+        if client:
+            try:
+                resp = client.with_attr(json_output=True).get_user()
+                if not resp.is_ok:
+                    raise NextCloudLoginError(
+                        'Failed to login to NextCloud', self.url, resp)
+            except requests.exceptions.SSLError as e:
+                self.logout()
+                raise e
+            except Exception as e:
+                self.logout()
+                raise e
 
     def logout(self):
         """Log out the authenticated user and close the session.

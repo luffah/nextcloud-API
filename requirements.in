@@ -1,2 +1,2 @@
 requests>=2.0.1
-pytest
+pytest>=4.6

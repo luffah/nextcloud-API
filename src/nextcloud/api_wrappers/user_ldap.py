@@ -126,9 +126,7 @@ class UserLDAP(base.OCSv2ApiWrapper):
 
         :returns: requester response
         """
-        prepared_data = {
-            'configData[{}]'.format(key): value
-            for key, value in data.items()}
+        prepared_data = {'configData[{}]'.format(key): value for key, value in data.items()}
         return self.requester.put(config_id, data=prepared_data)
 
     def ldap_cache_flush(self, config_id):

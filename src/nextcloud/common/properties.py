@@ -45,7 +45,8 @@ class Property(object, six.with_metaclass(MetaProperty)):
     def __init__(self, xml_name, json=None, default=None, parse_xml_value=None):
         if ':' in xml_name:
             (self.ns, self.xml_key) = xml_name.split(':')
-            self._name_convention = NAMESPACES_CLASSES[self.ns]
+            if self.ns in NAMESPACES_CLASSES:
+                self._name_convention = NAMESPACES_CLASSES[self.ns]._name_convention
         else:
             self.xml_key = xml_name
             if self.namespace:
@@ -56,16 +57,23 @@ class Property(object, six.with_metaclass(MetaProperty)):
         self.default_val = default
         self.parse_xml_value = parse_xml_value
 
-    @classmethod
-    def _xml_name_to_py_name(cls, name):
-        if name in cls._name_convention:
-            return cls._name_convention[name]
+    def __repr__(self):
+        return "<{}: ns={}, xml={}, py={}, json={}>".format(
+            self.__class__.__name__,
+            self.ns,
+            self.attr_name,
+            self.xml_key,
+            self.json_key
+        )
+
+    def _xml_name_to_py_name(self, name):
+        if name in self._name_convention:
+            return self._name_convention[name]
         else:
             return name.replace('-', '_')
 
-    @classmethod
-    def _py_name_to_xml_name(cls, name):
-        _reversed_convention = {v: k for k, v in cls._name_convention.items()}
+    def _py_name_to_xml_name(self, name):
+        _reversed_convention = {v: k for k, v in self._name_convention.items()}
         if name in _reversed_convention:
             return _reversed_convention[name]
         else:
@@ -102,8 +110,9 @@ class DProp(Property):
         'getetag': 'etag',
         'getcontenttype': 'content_type',
         'resourcetype': 'resource_type',
-                        'getcontentlength': 'content_length'
+        'getcontentlength': 'content_length'
     }
+
 
 class OCProp(Property):
     """ OwnCloud property """

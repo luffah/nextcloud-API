@@ -75,8 +75,8 @@ class GroupFolders(base.ProvisioningApiWrapper):
         :param permissions (int): The new permissions for the group as attribute of Permission class
         :returns:  resquester response
         """
-        url = '/'.join([str(fid), 'groups', gid])
-        return self.requester.post(url=url, data={'permissions': permissions})
+        url = "/".join([str(fid), "groups", gid])
+        return self.requester.post(url=url, data={"permissions": permissions})
 
     def set_quota_of_group_folder(self, fid, quota):
         """
@@ -86,8 +86,8 @@ class GroupFolders(base.ProvisioningApiWrapper):
         :param quota (int/str): The new quota for the folder in bytes, user -3 for unlimited
         :returns:  resquester response
         """
-        url = '/'.join([str(fid), 'quota'])
-        return self.requester.post(url, {'quota': quota})
+        url = "/".join([str(fid), "quota"])
+        return self.requester.post(url, {"quota": quota})
 
     def rename_group_folder(self, fid, mountpoint):
         """
@@ -97,5 +97,5 @@ class GroupFolders(base.ProvisioningApiWrapper):
         :param mountpoint (str): name for the new folder
         :returns:  resquester response
         """
-        url = '/'.join([str(fid), 'mountpoint'])
-        return self.requester.post(url=url, data={'mountpoint': mountpoint})
+        url = "/".join([str(fid), "mountpoint"])
+        return self.requester.post(url=url, data={"mountpoint": mountpoint})

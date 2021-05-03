@@ -10,6 +10,7 @@ from nextcloud.common.properties import Property as Prop
 
 
 class Tag(PropertySet):
+    """ Define a Tag properties"""
     _attrs = [
         Prop('oc:id'),
         Prop('oc:display-name', json='name', default='default_tag_name'),
@@ -22,19 +23,27 @@ class Tag(PropertySet):
 class SystemTags(WebDAVApiWrapper):
     """ SystemTags API wrapper """
     API_URL = '/remote.php/dav/systemtags'
-    JSON_ABLE = True
 
     def get_sytemtag(self, name, fields=None, json_output=None):
+        """
+        Get attributes of a nammed tag
+
+        :param name (str): tag name
+        :param fields (<list>str): field names
+        :returns: requester response with <list>Tag in data
+        """
         if not fields:
             fields = Tag._fields
-        resp = self.requester.propfind(data=Tag.build_xml_propfind(
-            fields={'oc': ['display-name'] + fields}))
+        resp = self.requester.propfind(
+            data=Tag.build_xml_propfind(fields={
+                'oc': ['display-name'] + fields
+            }))
         if json_output is None:
             json_output = self.json_output
         return Tag.from_response(resp,
                                  json_output=json_output,
                                  init_attrs=True,
-                                 filtered=(lambda t: t.display_name == name))
+                                 filtered=lambda t: t.display_name == name)
 
     def get_systemtags(self):
         """
@@ -43,8 +52,9 @@ class SystemTags(WebDAVApiWrapper):
         :returns: requester response with <list>Tag in data
         """
         resp = self.requester.propfind(
-            data=Tag.build_xml_propfind(use_default=True))
-        return Tag.from_response(resp, json_output=(self.json_output))
+            data=Tag.build_xml_propfind(use_default=True)
+        )
+        return Tag.from_response(resp, json_output=self.json_output)
 
     def create_systemtag(self, name, **kwargs):
         """
@@ -53,9 +63,12 @@ class SystemTags(WebDAVApiWrapper):
         :param name:  tag name
         :returns: requester response with tag id as data
         """
-        data = (Tag.default_get)(name=name, **kwargs)
-        resp = self.requester.post(data=(json.dumps(data)), headers={
-                                   'Content-Type': 'application/json'})
+        data = Tag.default_get(name=name, **kwargs)
+        resp = self.requester.post(
+            data=json.dumps(data),
+            headers={
+                'Content-Type': 'application/json'
+            })
         if resp.is_ok:
             resp.data = int(
                 resp.raw.headers['Content-Location'].split('/')[(-1)])
@@ -64,7 +77,7 @@ class SystemTags(WebDAVApiWrapper):
     def delete_systemtag(self, name=None, tag_id=None):
         """
         Delete systemtag
-        
+
         :param name (str): tag name, not required it tag_id is provided
         :tag_id (int): tag id, not required if name is provided
 
@@ -74,16 +87,15 @@ class SystemTags(WebDAVApiWrapper):
             resp = self.get_sytemtag(name, ['id'], json_output=False)
             if resp.data:
                 tag_id = resp.data[0].id
-        elif tag_id:
-            resp = self.requester.delete(url=(str(tag_id)))
+        if not tag_id:  # lint only
+            return None
+        resp = self.requester.delete(url=(str(tag_id)))
         return resp
 
 
 class SystemTagsRelation(WebDAVApiWrapper):
     """ SystemTagsRelation API wrapper """
     API_URL = '/remote.php/dav/systemtags-relations/files'
-    JSON_ABLE = True
-    REQUIRE_CLIENT = True
 
     def _get_fileid_from_path(self, path):
         """ Tricky function to fetch file """
@@ -121,7 +133,8 @@ class SystemTagsRelation(WebDAVApiWrapper):
 
         :returns: requester response with <list>Tag in data
         """
-        file_id, = self._arguments_get(['file_id'], locals())
+        file_id, = self._arguments_get(['file_id'], dict(file_id=file_id,
+                                                         **kwargs))
         data = Tag.build_xml_propfind()
         resp = self.requester.propfind(additional_url=file_id, data=data)
         return Tag.from_response(resp, json_output=(self.json_output))
@@ -138,7 +151,7 @@ class SystemTagsRelation(WebDAVApiWrapper):
         :returns: requester response
         """
         file_id, tag_id = self._arguments_get([
-            'file_id', 'tag_id'], locals())
+            'file_id', 'tag_id'], dict(file_id=file_id, tag_id=tag_id, **kwargs))
         resp = self.requester.delete(url=('{}/{}'.format(file_id, tag_id)))
         return resp
 
@@ -163,6 +176,5 @@ class SystemTagsRelation(WebDAVApiWrapper):
                 tag_id = resp.data
         if not file_id:
             raise ValueError('No file found')
-        data = Tag.build_xml_propfind()
         resp = self.requester.put(url=('{}/{}'.format(file_id, tag_id)))
         return resp

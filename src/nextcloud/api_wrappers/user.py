@@ -9,7 +9,6 @@ from nextcloud import base
 class User(base.ProvisioningApiWrapper):
     """ User API wrapper """
     API_URL = "/ocs/v1.php/cloud/users"
-    REQUIRE_CLIENT = True
 
     def add_user(self, uid, passwd):
         """

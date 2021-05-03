@@ -14,18 +14,18 @@ def encode_requests_password(word):
     """
     if isinstance(word, bytes):
         return word
+
+    ret = word
+    if six.PY2:
+        if isinstance(word, six.text_type):
+            # trick to work with tricks in requests lib
+            ret = word.encode('utf-8').decode('latin-1')
     else:
-        ret = word
-        if six.PY2:
-            if isinstance(word, unicode):
-                # trick to work with tricks in requests lib
-                ret = word.encode('utf-8').decode('latin-1')
-        else:
-            try:
-                ret = bytes(word, 'ascii')
-            except UnicodeEncodeError:
-                ret = bytes(word, 'utf-8')
-        return ret
+        try:
+            ret = bytes(word, 'ascii')
+        except UnicodeEncodeError:
+            ret = bytes(word, 'utf-8')
+    return ret
 
 
 def encode_string(string):
@@ -36,12 +36,6 @@ def encode_string(string):
     :returns     : encoded output as str
     """
     if six.PY2:
-        if isinstance(string, unicode):
+        if isinstance(string, six.text_type):
             return string.encode('utf-8')
     return string
-
-# from six.moves.urllib import parse
-# def prepare_url(s):
-#     if six.PY2 and isinstance(s, unicode):  # noqa: F821
-#         return parse.urlparse(s).path
-#     return s

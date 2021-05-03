@@ -31,21 +31,17 @@ class NextCloud(object):
       ...     # some actions #
     """
 
-    def __init__(self, endpoint, user=None, password=None, json_output=True, auth=None, session_kwargs=None):
-        self.query_components = []
-        self._session = Session(
+    def __init__(self, endpoint=None,
+                 user=None, password=None, json_output=True, auth=None,
+                 session_kwargs=None,
+                 session=None):
+        self.session = session or Session(
             url=endpoint, user=user, password=password, auth=auth,
             session_kwargs=session_kwargs
         )
         self.json_output = json_output
         for functionality_class in API_WRAPPER_CLASSES:
-            json_able = getattr(functionality_class, 'JSON_ABLE', False)
-            require_client = getattr(
-                functionality_class, 'REQUIRE_CLIENT', False)
-            functionality_instance = functionality_class(
-                self._session,
-                json_output=(json_able and json_output),
-                client=(require_client and self))
+            functionality_instance = functionality_class(self)
             for potential_method in dir(functionality_instance):
                 if not potential_method.startswith('_'):
                     if not callable(getattr(functionality_instance, potential_method)):
@@ -56,11 +52,11 @@ class NextCloud(object):
 
     @property
     def user(self):
-        return self._session.user
+        return self.session.user
 
     @property
     def url(self):
-        return self._session.url
+        return self.session.url
 
     def __enter__(self):
         self.login()
@@ -71,14 +67,22 @@ class NextCloud(object):
 
     def login(self, user=None, password=None, auth=None):
         self.logout()
-        self._session.login(user=user, password=password, auth=auth)
+        return self.session.login(user=user, password=password, auth=auth,
+                                  client=self)
+
+    def with_attr(self, **kwargs):
+        if 'auth' in kwargs:
+            return self.with_auth(**kwargs)
+        if 'session_kwargs' in kwargs:
+            return self.with_auth(self.session.auth, **kwargs)
+        return self.__class__(session=self.session, **kwargs)
 
     def with_auth(self, auth=None, **kwargs):
-        init_kwargs = {'session_kwargs': self._session._session_kwargs,
+        init_kwargs = {'session_kwargs': self.session._session_kwargs,
                        'json_output': self.json_output}
         init_kwargs.update(kwargs)
-        return (self.__class__)(self._session.url, auth=auth, **init_kwargs)
+        return self.__class__(self.session.url, auth=auth, **init_kwargs)
 
     def logout(self):
-        if self._session.session:
-            self._session.logout()
+        if self.session.session:
+            self.session.logout()

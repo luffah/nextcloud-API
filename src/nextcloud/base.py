@@ -10,11 +10,12 @@ API_WRAPPER_CLASSES = []
 
 
 class MetaWrapper(type):
-    def __new__(meta, name, bases, attrs):
-        cls = type.__new__(meta, name, bases, attrs)
-        if (cls.API_URL != NotImplementedError and cls.VERIFIED):
-            API_WRAPPER_CLASSES.append(cls)
-        return cls
+    """ Meta class to register wrappers """
+    def __new__(cls, name, bases, attrs):
+        new_cls = type.__new__(cls, name, bases, attrs)
+        if (new_cls.API_URL != NotImplementedError and new_cls.VERIFIED):
+            API_WRAPPER_CLASSES.append(new_cls)
+        return new_cls
 
 
 class BaseApiWrapper(object, six.with_metaclass(MetaWrapper)):
@@ -40,18 +41,18 @@ class BaseApiWrapper(object, six.with_metaclass(MetaWrapper)):
     API_URL = NotImplementedError
     VERIFIED = True
     JSON_ABLE = True
-    REQUIRE_CLIENT = False
-    REQUIRE_USER = False
     REQUESTER = Requester
 
-    def __init__(self, session, json_output=None, client=None, user=None):
-        self.json_output = json_output
+    def __init__(self, client=None):
         self.client = client
-        self.user = user
-        self.requester = self.REQUESTER(session, json_output=json_output)
+        self.requester = self.REQUESTER(self)
 
         for attr_name in ['API_URL', 'SUCCESS_CODE', 'METHODS_SUCCESS_CODES']:
             setattr(self.requester, attr_name, getattr(self, attr_name, None))
+
+    @property
+    def json_output(self):
+        return self.JSON_ABLE and self.client.json_output
 
     def _arguments_get(self, varnames, vals):
         """
@@ -66,6 +67,10 @@ class BaseApiWrapper(object, six.with_metaclass(MetaWrapper)):
         >>>     return self.get_file_id_from_name(vals.get('name', None))
         >>>
         >>> nxc.get_file_id(name='foo.bar')
+
+        :param varmames: list of wanted python var names
+        :param vals: a dict object containing already set variables
+        :returns:  list of wanted values
         """
         if 'kwargs' in vals:
             vals.update(vals['kwargs'])

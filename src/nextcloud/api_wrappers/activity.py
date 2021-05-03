@@ -39,5 +39,5 @@ class Activity(base.OCSv2ApiWrapper):
             sort=sort
         )
         if params['object_type'] and params['object_id']:
-                return self.requester.get(url="filter", params=params)
+            return self.requester.get(url="filter", params=params)
         return self.requester.get(params=params)

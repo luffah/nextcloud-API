@@ -1,3 +1,4 @@
+"""  Tests for NextCloud-Api module """
 import sys
 from os.path import dirname
 from os.path import join

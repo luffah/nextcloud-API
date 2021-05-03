@@ -46,13 +46,20 @@ class File(PropertySet):
         file_type = list(file_property)
         if file_type:
             return re.sub('{.*}', '', file_type[0].tag)
+        return None
+
+    def isfile(self):
+        """ say if the file is a file /!\\ ressourcetype property shall be loaded """
+        return not self.resource_type
+
+    def isdir(self):
+        """ say if the file is a directory /!\\ ressourcetype property shall be loaded """
+        return self.resource_type == self.COLLECTION_RESOURCE_TYPE
 
 
 class WebDAV(WebDAVApiWrapper):
     """ WebDav API wrapper """
     API_URL = "/remote.php/dav/files"
-    JSON_ABLE = True
-    REQUIRE_CLIENT = True
 
     def _get_path(self, path):
         if path:
@@ -287,7 +294,7 @@ class WebDAV(WebDAVApiWrapper):
         if ':' in field:
             tag, field = field.split(':')
         get_file_prop_xpath = '{DAV:}propstat/d:prop/%s:%s' % (tag, field)
-        data = (File.build_xml_propfind)(**{tag: [field]})
+        data = File.build_xml_propfind(fields={tag: [field]})
         resp = self.requester.propfind(additional_url=(self._get_path(path)), headers={'Depth': str(0)},
                                        data=data)
         response_data = resp.data

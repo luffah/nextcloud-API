@@ -19,4 +19,4 @@ Run tests:
     
 Run examples:
 
-    docker-compose run --rm python-api python ../example.py
+    docker-compose run --rm python-api python ../examples/user_management.py
