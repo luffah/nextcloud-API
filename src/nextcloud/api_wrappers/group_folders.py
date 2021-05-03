@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
-from nextcloud.base import WithRequester
+"""
+GroupFolders API wrapper
+See https://apps.nextcloud.com/apps/groupfolders
+"""
+from nextcloud import base
 
 
-class GroupFolders(WithRequester):
+class GroupFolders(base.ProvisioningApiWrapper):
+    """ GroupFolders API wrapper """
     API_URL = "/apps/groupfolders/folders"
-    SUCCESS_CODE = 100
 
     def get_group_folders(self):
         """
         Return a list of call configured folders and their settings
 
-        Returns:
-
+        :returns:  resquester response
         """
         return self.requester.get()
 
@@ -19,11 +22,8 @@ class GroupFolders(WithRequester):
         """
         Return a specific configured folder and it's settings
 
-        Args:
-            fid (int/str): group folder id
-
-        Returns:
-
+        :param fid (int/str): group folder id
+        :returns:  resquester response
         """
         return self.requester.get(fid)
 
@@ -31,11 +31,8 @@ class GroupFolders(WithRequester):
         """
         Create a new group folder
 
-        Args:
-            mountpoint (str): name for the new folder
-
-        Returns:
-
+        :param mountpoint (str): name for the new folder
+        :returns:  resquester response
         """
         return self.requester.post(data={"mountpoint": mountpoint})
 
@@ -43,11 +40,8 @@ class GroupFolders(WithRequester):
         """
         Delete a group folder
 
-        Args:
-            fid (int/str): group folder id
-
-        Returns:
-
+        :param fid (int/str): group folder id
+        :returns:  resquester response
         """
         return self.requester.delete(fid)
 
@@ -55,12 +49,8 @@ class GroupFolders(WithRequester):
         """
         Give a group access to a folder
 
-        Args:
-            fid (int/str): group folder id
-            gid (str): group to share with id
-
-        Returns:
-
+        :param fid (int/str): group folder id
+        :returns:  resquester response
         """
         url = "/".join([str(fid), "groups"])
         return self.requester.post(url, data={"group": gid})
@@ -69,12 +59,9 @@ class GroupFolders(WithRequester):
         """
         Remove access from a group to a folder
 
-        Args:
-            fid (int/str): group folder id
-            gid (str): group id
-
-        Returns:
-
+        :param fid (int/str): group folder id
+        :param gid (str): group id
+        :returns:  resquester response
         """
         url = "/".join([str(fid), "groups", gid])
         return self.requester.delete(url)
@@ -83,41 +70,32 @@ class GroupFolders(WithRequester):
         """
         Set the permissions a group has in a folder
 
-        Args:
-            fid (int/str): group folder id
-            gid (str): group id
-            permissions (int): The new permissions for the group as attribute of Permission class
-
-        Returns:
-
+        :param fid (int/str): group folder id
+        :param gid (str): group id
+        :param permissions (int): The new permissions for the group as attribute of Permission class
+        :returns:  resquester response
         """
-        url = "/".join([str(fid), "groups", gid])
-        return self.requester.post(url=url, data={"permissions": permissions})
+        url = '/'.join([str(fid), 'groups', gid])
+        return self.requester.post(url=url, data={'permissions': permissions})
 
     def set_quota_of_group_folder(self, fid, quota):
         """
         Set the quota for a folder in bytes
 
-        Args:
-            fid (int/str): group folder id
-            quota (int/str): The new quota for the folder in bytes, user -3 for unlimited
-
-        Returns:
-
+        :param fid (int/str): group folder id
+        :param quota (int/str): The new quota for the folder in bytes, user -3 for unlimited
+        :returns:  resquester response
         """
-        url = "/".join([str(fid), "quota"])
-        return self.requester.post(url, {"quota": quota})
+        url = '/'.join([str(fid), 'quota'])
+        return self.requester.post(url, {'quota': quota})
 
     def rename_group_folder(self, fid, mountpoint):
         """
         Change the name of a folder
 
-        Args:
-            fid (int/str): group folder id
-            mountpoint (str): The new name for the folder
-
-        Returns:
-
+        :param fid (int/str): group folder id
+        :param mountpoint (str): name for the new folder
+        :returns:  resquester response
         """
-        url = "/".join([str(fid), "mountpoint"])
-        return self.requester.post(url=url, data={"mountpoint": mountpoint})
+        url = '/'.join([str(fid), 'mountpoint'])
+        return self.requester.post(url=url, data={'mountpoint': mountpoint})

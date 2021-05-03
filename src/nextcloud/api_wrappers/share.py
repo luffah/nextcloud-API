@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
-from nextcloud.base import WithRequester, ShareType
+"""
+Share API wrapper
+See https://doc.owncloud.com/server/developer_manual/core/apis/ocs-share-api.html
+See https://docs.nextcloud.com/server/latest/developer_manual/client_apis/OCS/ocs-share-api.html
+"""
+from nextcloud import base
+from nextcloud.codes import ShareType
 
 
-class Share(WithRequester):
+class Share(base.OCSv2ApiWrapper):
+    """ Share API wrapper """
     API_URL = "/ocs/v2.php/apps/files_sharing/api/v1"
     LOCAL = "shares"
-    SUCCESS_CODE = 200
 
     def get_local_url(self, additional_url=""):
         if additional_url:
@@ -50,7 +56,7 @@ class Share(WithRequester):
                 defines a folder
 
         Returns:
-
+            requester response
         """
         url = self.get_local_url()
         params = {
@@ -69,6 +75,7 @@ class Share(WithRequester):
             sid (int): share id
 
         Returns:
+            requester response
         """
         return self.requester.get(self.get_local_url(sid))
 
@@ -89,7 +96,7 @@ class Share(WithRequester):
             permissions (int): sum of selected Permission attributes
 
         Returns:
-
+            requester response
         """
         if not self.validate_share_parameters(path, share_type, share_with):
             return False
@@ -117,7 +124,7 @@ class Share(WithRequester):
             sid (str): share id
 
         Returns:
-
+            requester response
         """
         return self.requester.delete(self.get_local_url(sid))
 
@@ -134,7 +141,7 @@ class Share(WithRequester):
             expire_date (str): set an expire date for public link shares. Format: ‘YYYY-MM-DD’
 
         Returns:
-
+            requester response
         """
         params = dict(
             permissions=permissions,

@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
-from nextcloud.base import WithRequester
+"""
+Notification API wrapper
+See https://doc.owncloud.com/server/developer_manual/core/apis/ocs-notification-endpoint-v1.html
+See https://docs.nextcloud.com/server/latest/developer_manual/client_apis/OCS/ocs-api-overview.html?highlight=notification#notifications
+"""
+from nextcloud import base
 
 
-class Notifications(WithRequester):
+class Notifications(base.OCSv2ApiWrapper):
+    """ Notification API wrapper """
     API_URL = "/ocs/v2.php/apps/notifications/api/v2/notifications"
-    SUCCESS_CODE = 200
 
     def get_notifications(self):
         """ Get list of notifications for a logged in user """
@@ -14,11 +19,8 @@ class Notifications(WithRequester):
         """
         Get single notification by id for a user
 
-        Args:
-            notification_id (int): Notification id
-
-        Returns:
-
+        :param notification_id (int): Notification id
+        :returns: requester response
         """
         return self.requester.get(url=notification_id)
 
@@ -26,11 +28,8 @@ class Notifications(WithRequester):
         """
         Delete single notification by id for a user
 
-        Args:
-            notification_id (int): Notification id
-
-        Returns:
-
+        :param notification_id (int): Notification id
+        :returns: requester response
         """
         return self.requester.delete(url=notification_id)
 

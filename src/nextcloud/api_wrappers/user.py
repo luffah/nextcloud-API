@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
-from nextcloud.base import WithRequester
+"""
+User API wrapper
+See https://doc.owncloud.com/server/developer_manual/core/apis/provisioning-api.html
+"""
+from nextcloud import base
 
 
-class User(WithRequester):
+class User(base.ProvisioningApiWrapper):
+    """ User API wrapper """
     API_URL = "/ocs/v1.php/cloud/users"
-    SUCCESS_CODE = 100
+    REQUIRE_CLIENT = True
 
     def add_user(self, uid, passwd):
         """
@@ -12,7 +17,7 @@ class User(WithRequester):
 
         :param uid: str, uid of new user
         :param passwd: str, password of new user
-        :return:
+        :returns:  resquester response
         """
         msg = {'userid': uid, 'password': passwd}
         return self.requester.post("", msg)
@@ -24,7 +29,7 @@ class User(WithRequester):
         :param search: string, optional search string
         :param limit: int, optional limit value
         :param offset: int, optional offset value
-        :return:
+        :returns:  resquester response
         """
         params = {
             'search': search,
@@ -33,14 +38,28 @@ class User(WithRequester):
         }
         return self.requester.get(params=params)
 
-    def get_user(self, uid):
+    def get_user(self, uid=None):
         """
         Retrieve information about a single user
 
-        :param uid: str, uid of user
-        :return:
+        :param uid: str, uid of user (default: current user)
+        :returns:  resquester response
         """
-        return self.requester.get("{uid}".format(uid=uid))
+        return self.requester.get(uid or self.client.user)
+
+    def get_connection_issues(self):
+        """
+        Return Falsy falue if everything is OK, or string representing
+        the connection problem (bad hostname, password, whatever)
+        """
+        try:
+            response = self.get_user()
+        except Exception as e:
+            return str(e)
+
+        if not response.is_ok:
+            return response.meta['message']
+        return None
 
     def edit_user(self, uid, what, value):
         """
@@ -52,30 +71,24 @@ class User(WithRequester):
         :param uid: str, uid of user
         :param what: str, the field to edit
         :param value: str, the new value for the field
-        :return:
+        :returns:  resquester response
         """
-        what_to_key_map = dict(
-            email="email", quota="quota", phone="phone", address="address", website="website",
-            twitter="twitter", displayname="displayname", password="password",
-        )
-        assert what in what_to_key_map, (
+        keys = [
+            'email', 'quota', 'phone', 'address', 'website', 'twitter',
+            'displayname', 'password'
+        ]
+        assert what in keys, (
             "You have chosen to edit user's '{what}', but you can choose only from: {choices}"
-            .format(what=what, choices=", ".join(what_to_key_map.keys()))
+            .format(what=what, choices=(keys()))
         )
-
-        url = "{uid}".format(uid=uid)
-        msg = dict(
-            key=what_to_key_map[what],
-            value=value,
-        )
-        return self.requester.put(url, msg)
+        return self.requester.put(uid, dict(key=what, value=value))
 
     def disable_user(self, uid):
         """
         Disable a user on the Nextcloud server so that the user cannot login anymore
 
         :param uid: str, uid of user
-        :return:
+        :returns:  resquester response
         """
         return self.requester.put("{uid}/disable".format(uid=uid))
 
@@ -84,7 +97,7 @@ class User(WithRequester):
         Enable a user on the Nextcloud server so that the user can login again
 
         :param uid: str, uid of user
-        :return:
+        :returns:  resquester response
         """
         return self.requester.put("{uid}/enable".format(uid=uid))
 
@@ -93,7 +106,7 @@ class User(WithRequester):
         Delete a user from the Nextcloud server
 
         :param uid: str, uid of user
-        :return:
+        :returns:  resquester response
         """
         return self.requester.delete("{uid}".format(uid=uid))
 
@@ -103,7 +116,7 @@ class User(WithRequester):
 
         :param uid: str, uid of user
         :param gid: str, name of group
-        :return:
+        :returns:  resquester response
         """
         url = "{uid}/groups".format(uid=uid)
         msg = {'groupid': gid}
@@ -115,7 +128,7 @@ class User(WithRequester):
 
         :param uid: str, uid of user
         :param gid: str, name of group
-        :return:
+        :returns:  resquester response
         """
         url = "{uid}/groups".format(uid=uid)
         msg = {'groupid': gid}
@@ -127,7 +140,7 @@ class User(WithRequester):
 
         :param uid: str, uid of user
         :param gid: str, name of group
-        :return:
+        :returns:  resquester response
         """
         url = "{uid}/subadmins".format(uid=uid)
         msg = {'groupid': gid}
@@ -139,7 +152,7 @@ class User(WithRequester):
 
         :param uid: str, uid of user
         :param gid: str, name of group
-        :return:
+        :returns:  resquester response
         """
         url = "{uid}/subadmins".format(uid=uid)
         msg = {'groupid': gid}
@@ -150,7 +163,7 @@ class User(WithRequester):
         Get the groups in which the user is a subadmin
 
         :param uid: str, uid of user
-        :return:
+        :returns:  resquester response
         """
         url = "{uid}/subadmins".format(uid=uid)
         return self.requester.get(url)
@@ -160,7 +173,7 @@ class User(WithRequester):
         Trigger the welcome email for this user again
 
         :param uid: str, uid of user
-        :return:
+        :returns:  resquester response
         """
         url = "{uid}/welcome".format(uid=uid)
         return self.requester.post(url)

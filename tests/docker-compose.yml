@@ -3,7 +3,7 @@ version: '3'
 services:
   app:
     build:
-      context: ../nextcloud
+      context: .
       dockerfile: Dockerfile
       args:
         NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION}

@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
-from nextcloud.base import WithRequester
+"""
+Activity API wrapper
+See https://doc.owncloud.com/server/user_manual/apps/activity.html
+    https://doc.owncloud.com/server/developer_manual/core/apis/
+"""
+from nextcloud import base
 
 
-class Activity(WithRequester):
+class Activity(base.OCSv2ApiWrapper):
+    """ Activity API wrapper """
     API_URL = "/ocs/v2.php/apps/activity/api/v2/activity"
-    SUCCESS_CODE = 200
 
     def get_activities(self, since=None, limit=None, object_type=None, object_id=None, sort=None):
         """
@@ -24,7 +29,7 @@ class Activity(WithRequester):
                 (Default: desc)
 
         Returns:
-
+            requester response
         """
         params = dict(
             since=since,
@@ -34,5 +39,5 @@ class Activity(WithRequester):
             sort=sort
         )
         if params['object_type'] and params['object_id']:
-            return self.requester.get(url="filter", params=params)
+                return self.requester.get(url="filter", params=params)
         return self.requester.get(params=params)

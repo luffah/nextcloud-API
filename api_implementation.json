@@ -22,6 +22,12 @@
       "date_last_checked": "2019-02-02"
     },
     {
+      "name": "Tags API",
+      "url": "https://doc.owncloud.com/server/developer_manual/webdav_api/tags.html",
+      "implementation status": "OK",
+      "date_last_checked": "2021-05-03"
+    },
+    {
       "name": "Activity app API",
       "url": "https://github.com/nextcloud/activity",
       "implementation status": "OK",

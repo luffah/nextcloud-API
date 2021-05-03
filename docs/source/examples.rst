@@ -4,5 +4,5 @@ Examples
 Users API methods
 -----------------
 
-.. include:: ../../example.py
+.. include:: ../../examples/user_management.py
     :literal:

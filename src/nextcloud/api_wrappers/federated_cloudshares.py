@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
-from nextcloud.base import WithRequester
+"""
+Federated Cloud Share wrapper.
+See https://doc.owncloud.com/server/developer_manual/core/apis/ocs-share-api.html#federated-cloud-shares
+"""
+from nextcloud import base
 
 
-class FederatedCloudShare(WithRequester):
+class FederatedCloudShare(base.OCSv2ApiWrapper):
+    """ Federated Cloud Share wrapper """
     API_URL = "/ocs/v2.php/apps/files_sharing/api/v1"
     FEDERATED = "remote_shares"
-    SUCCESS_CODE = 200
 
     def get_federated_url(self, additional_url=""):
         if additional_url:

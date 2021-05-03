@@ -1,4 +1,5 @@
-# -*- coding: utf-8 -*-
+from nextcloud.base import API_WRAPPER_CLASSES
+
 from .activity import Activity
 from .apps import Apps
 from .capabilities import Capabilities
@@ -10,8 +11,4 @@ from .share import Share
 from .user import User
 from .user_ldap import UserLDAP
 from .webdav import WebDAV
-
-OCS_API_CLASSES = [Activity, Apps, Capabilities, FederatedCloudShare, Group, GroupFolders,
-                   Notifications, Share, User, UserLDAP]
-
-WEBDAV_CLASS = WebDAV
+from .systemtags import SystemTags, SystemTagsRelation

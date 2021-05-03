@@ -9,8 +9,13 @@
 
 Python wrapper for NextCloud api
 
-This is Python wrapper for NextCloud's API. With it you can manage your NextCloud instances from Python scripts.
-Tested with python 3.7, NextCloud 14.
+This is Python wrapper for NextCloud's API.
+With it you can manage your NextCloud instances from Python scripts.
+
+Tested with :
+  * NextCloud 14, python 3.7
+  * NextCloud 20, python 2.7
+  * NextCloud 20, python 3.6
 
 
 ## FAQ
@@ -23,7 +28,7 @@ Check out the corresponding [nextcloud API documentation](https://nextcloud-api.
 
 #### How do I use it?
 
-Check out [the simple example](example.py) and also check out the [unit tests directory](tests).
+Check out [examples](examples) and also check out the [unit tests directory](tests).
 
 
 #### What do I do if it doesn't work?

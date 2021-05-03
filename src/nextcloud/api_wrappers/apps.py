@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
-from nextcloud.base import WithRequester
+"""
+Apps API wrapper
+See https://doc.owncloud.com/server/developer_manual/core/apis/provisioning-api.html
+"""
+from nextcloud import base
 
 
-class Apps(WithRequester):
+class Apps(base.ProvisioningApiWrapper):
     API_URL = "/ocs/v1.php/cloud/apps"
-    SUCCESS_CODE = 100
 
     def get_apps(self, filter=None):
         """
@@ -13,9 +16,7 @@ class Apps(WithRequester):
         :param filter: str, optional "enabled" or "disabled"
         :return:
         """
-        params = {
-            "filter": filter
-        }
+        params = {"filter": filter}
         return self.requester.get(params=params)
 
     def get_app(self, app_id):

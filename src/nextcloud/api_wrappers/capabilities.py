@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
-from nextcloud.base import WithRequester
+"""
+Capabilities API wrapper
+See https://doc.owncloud.com/server/developer_manual/core/apis/ocs-capabilities.html
+"""
+from nextcloud import base
 
 
-class Capabilities(WithRequester):
+class Capabilities(base.OCSv1ApiWrapper):
+    """ Capabilities API wrapper """
     API_URL = "/ocs/v1.php/cloud/capabilities"
-    SUCCESS_CODE = 100
 
     def get_capabilities(self):
         """ Obtain capabilities provided by the Nextcloud server and its apps """

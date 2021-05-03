@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
-from nextcloud.base import WithRequester
+"""
+Group API wrapper
+See https://doc.owncloud.com/server/developer_manual/core/apis/provisioning-api.html
+"""
+from nextcloud.base import ProvisioningApiWrapper
 
 
-class Group(WithRequester):
+class Group(ProvisioningApiWrapper):
+    """ Group API wrapper """
     API_URL = "/ocs/v1.php/cloud/groups"
-    SUCCESS_CODE = 100
 
     def get_groups(self, search=None, limit=None, offset=None):
         """

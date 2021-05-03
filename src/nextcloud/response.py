@@ -1,66 +1,72 @@
 # -*- coding: utf-8 -*-
-from json import JSONDecodeError
+try:
+    from json import JSONDecodeError
+except ImportError:
+    JSONDecodeError = ValueError
 
-from .api_wrappers.webdav import WebDAVStatusCodes
 
+class BaseResponse(object):
 
-class NextCloudResponse(object):
-
-    def __init__(self, response, json_output=True, data=None):
+    def __init__(self, response, data=None, json_output=True,
+                 status_code=None, success_code=None, **kwargs):
         self.raw = response
-        if not data:
-            self.data = response.json() if json_output else response.content.decode("UTF-8")
+        print(self.raw.content)
+        self.data = data or (
+            response.json() if json_output else response.content.decode('UTF-8')
+        )
+        self.status_code = status_code or response.status_code
+        for k in kwargs:
+            setattr(self, k, kwargs[k])
+        self._compute_is_ok(success_code)
+
+    def _compute_is_ok(self, success_code):
+        if isinstance(success_code, dict):
+            method = self.raw.request.method
+            success_codes = success_code.get(method, [])
         else:
-            self.data = data
+            success_codes = (
+                success_code if isinstance(success_code, list) else
+                [success_code]
+            )
 
-
-class WebDAVResponse(NextCloudResponse):
-    """ Response class for WebDAV api methods """
-
-    METHODS_SUCCESS_CODES = {
-        "PROPFIND": [WebDAVStatusCodes.MULTISTATUS_CODE],
-        "PROPPATCH": [WebDAVStatusCodes.MULTISTATUS_CODE],
-        "REPORT": [WebDAVStatusCodes.MULTISTATUS_CODE],
-        "MKCOL": [WebDAVStatusCodes.CREATED_CODE],
-        "COPY": [WebDAVStatusCodes.CREATED_CODE, WebDAVStatusCodes.NO_CONTENT_CODE],
-        "MOVE": [WebDAVStatusCodes.CREATED_CODE, WebDAVStatusCodes.NO_CONTENT_CODE],
-        "PUT": [WebDAVStatusCodes.CREATED_CODE],
-        "DELETE": [WebDAVStatusCodes.NO_CONTENT_CODE]
-    }
-
-    def __init__(self, response, data=None):
-        super(WebDAVResponse, self).__init__(response=response, data=data, json_output=False)
-        request_method = response.request.method
-        self.is_ok = False
-        if request_method in self.METHODS_SUCCESS_CODES:
-            self.is_ok = response.status_code in self.METHODS_SUCCESS_CODES[request_method]
+        self.is_ok = self.status_code in success_codes
 
     def __repr__(self):
-        is_ok_str = "OK" if self.is_ok else "Failed"
-        return "<OCSResponse: Status: {}>".format(is_ok_str)
+        is_ok_str = 'OK' if self.is_ok else 'Failed'
+        return '<{}: Status: {}>'.format(self.__class__.__name__, is_ok_str)
 
 
-class OCSResponse(NextCloudResponse):
+class OCSResponse(BaseResponse):
     """ Response class for OCS api methods """
 
     def __init__(self, response, json_output=True, success_code=None):
-        self.raw = response
-        self.is_ok = None
+        data = None
+        full_data = None
+        meta = None
 
-        if json_output:
+        if (success_code or json_output):
             try:
-                self.full_data = response.json()
-                self.meta = self.full_data['ocs']['meta']
-                self.status_code = self.full_data['ocs']['meta']['statuscode']
-                self.data = self.full_data['ocs']['data']
-                if success_code:
-                    self.is_ok = self.full_data['ocs']['meta']['statuscode'] == success_code
+                full_data = response.json()
+                meta = full_data['ocs']['meta']
+                status_code = meta['statuscode']
+                if json_output:
+                    data = full_data['ocs']['data']
             except JSONDecodeError:
-                self.is_ok = False
-                self.data = {'message': 'Unable to parse JSON response'}
-        else:
-            self.data = response.content.decode("UTF-8")
+                data = {'message': 'Unable to parse JSON response'}
+                status_code = -1
 
-    def __repr__(self):
-        is_ok_str = "OK" if self.is_ok else "Failed"
-        return "<OCSResponse: Status: {}>".format(is_ok_str)
+        super(OCSResponse, self).__init__(response, data=data,
+                                          json_output=json_output,
+                                          full_data=full_data,
+                                          status_code=status_code,
+                                          meta=meta,
+                                          success_code=success_code)
+
+
+class WebDAVResponse(BaseResponse):
+    """ Response class for WebDAV api methods """
+
+    def __init__(self, response, data=None, success_code=None, json_output=False):
+        super(WebDAVResponse, self).__init__(response, data=data,
+                                             json_output=json_output,
+                                             success_code=success_code)

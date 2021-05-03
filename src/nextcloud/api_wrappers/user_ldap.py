@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
+"""
+User LDAP wrapper
+See https://doc.owncloud.com/server/10.7/admin_manual/configuration/server/occ_commands/app_commands/ldap_integration_commands.html
+"""
 import re
+from nextcloud import base
 
-from nextcloud.base import WithRequester
 
-
-class UserLDAP(WithRequester):
+class UserLDAP(base.OCSv2ApiWrapper):
+    """ User LDAP wrapper """
     API_URL = "/ocs/v2.php/apps/user_ldap/api/v1/config"
-    SUCCESS_CODE = 200
 
     CONFIG_KEYS = [
         "ldapHost",
@@ -72,15 +75,13 @@ class UserLDAP(WithRequester):
         Given the number of the config file, return the corresponding string ID
         if the configuration exists.
 
-        Args:
-            idx: The index of the configuration.
+        :param idx: The index of the configuration.
                  If a single configuration exists on the server from the beginning,
                  it is going to have index of 1.
 
-        Returns:
-            Configuration string or None
+        :returns:  Configuration string or None
         """
-        config_id = f"s{idx:02d}"
+        config_id = 's%02d' % idx
         config = self.get_ldap_config(config_id)
         if config.is_ok:
             return config_id
@@ -91,12 +92,10 @@ class UserLDAP(WithRequester):
         Given (inclusive) lower and upper bounds, try to guess an existing LDAP config ID
         that corresponds to an index within those bounds.
 
-        Args:
-            lower_bound: The lowest index of the configuration possible.
-            upper_bound: The greatest index of the configuration possible.
+        :param lower_bound: The lowest index of the configuration possible.
+        :param upper_bound: The greatest index of the configuration possible.
 
-        Returns:
-            Configuration string or None
+        :returns: Configuration string or None
         """
         for idx in range(lower_bound, upper_bound + 1):
             config_id = self.get_ldap_config_id(idx)
@@ -107,12 +106,10 @@ class UserLDAP(WithRequester):
         """
         Get all keys and values of the specified LDAP configuration
 
-        Args:
-            config_id (str): User LDAP config id
-            show_password (int): 0 or 1 whether to return the password in clear text (default 0)
+        :param config_id (str): User LDAP config id
+        :param show_password (int): 0 or 1 whether to return the password in clear text (default 0)
 
-        Returns:
-
+        :returns: requester response
         """
         params = dict(showPassword=show_password)
         return self.requester.get(config_id, params=params)
@@ -124,14 +121,14 @@ class UserLDAP(WithRequester):
         You can find list of all config keys in get_ldap_config method response or in
         Nextcloud docs
 
-        Args:
-            config_id (str): User LDAP config id
-            data (dict): config values to update
+        :param config_id (str): User LDAP config id
+        :param data (dict): config values to update
 
-        Returns:
-
+        :returns: requester response
         """
-        prepared_data = {'configData[{}]'.format(key): value for key, value in data.items()}
+        prepared_data = {
+            'configData[{}]'.format(key): value
+            for key, value in data.items()}
         return self.requester.put(config_id, data=prepared_data)
 
     def ldap_cache_flush(self, config_id):
@@ -142,8 +139,7 @@ class UserLDAP(WithRequester):
         This is performed by a fake update of LDAP cache TTL
         as indicated by
 
-        Args:
-            config_id (str): User LDAP config id
+        :param config_id (str): User LDAP config id
         """
         cache_val = self.get_ldap_cache_ttl(config_id)
         self.set_ldap_cache_ttl(config_id, cache_val)
@@ -152,11 +148,9 @@ class UserLDAP(WithRequester):
         """
         Delete a given LDAP configuration
 
-        Args:
-            config_id (str): User LDAP config id
+        :param config_id (str): User LDAP config id
 
-        Returns:
-
+        :returns: requester response
         """
         return self.requester.delete(config_id)
 
