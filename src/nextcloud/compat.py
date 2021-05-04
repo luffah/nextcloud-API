@@ -3,6 +3,7 @@
 Tools for python2/3 unicode compatibility
 """
 import six
+import time
 
 
 def encode_requests_password(word):
@@ -39,3 +40,17 @@ def encode_string(string):
         if isinstance(string, six.text_type):
             return string.encode('utf-8')
     return string
+
+
+def datetime_to_timestamp(_time):
+    """
+    Returns int(<datetime>.timestamp())
+    """
+    if six.PY2:
+        return int(
+            time.mktime(_time.timetuple()) + _time.microsecond/1000000.0
+        )
+    else:
+        return int(
+            _time.timestamp()
+        )

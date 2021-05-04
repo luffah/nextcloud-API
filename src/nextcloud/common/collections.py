@@ -11,7 +11,10 @@ from nextcloud.common.properties import NAMESPACES_MAP
 class PropertySet(object):
     """
     Set of nextcloud.common.properties.Prop
-    defined in _attrs class variable
+    defined in _attrs class variable.
+
+    The inherited classes can do additionnal complex operations
+    if wrapper instance is defined at initialization.
     """
     SUCCESS_STATUS = 'HTTP/1.1 200 OK'
     COLLECTION_RESOURCE_TYPE = 'collection'
@@ -31,11 +34,12 @@ class PropertySet(object):
             if getattr(k, attr) == key:
                 return k
 
-    def __init__(self, xml_data, init_attrs=False):
+    def __init__(self, xml_data, init_attrs=False, wrapper=None):
         if init_attrs:
             for attr in self._attrs:
                 setattr(self, attr.attr_name, None)
 
+        self._wrapper = wrapper
         self.href = xml_data.find('d:href', NAMESPACES_MAP).text
         for propstat in xml_data.iter('{DAV:}propstat'):
             if propstat.find('d:status', NAMESPACES_MAP).text != self.SUCCESS_STATUS:
@@ -83,7 +87,8 @@ class PropertySet(object):
         return SimpleXml.build_propupdate_datas(values)
 
     @classmethod
-    def from_response(cls, resp, json_output=None, filtered=None, init_attrs=None):
+    def from_response(cls, resp, json_output=None, filtered=None,
+                      init_attrs=None, wrapper=None):
         """ Build list of PropertySet from a NextcloudResponse """
         if not resp.is_ok:
             resp.data = None
@@ -91,7 +96,7 @@ class PropertySet(object):
         else:
             response_data = resp.data
             response_xml_data = SimpleXml.fromstring(response_data)
-            attr_datas = [cls(xml_data, init_attrs=init_attrs)
+            attr_datas = [cls(xml_data, init_attrs=init_attrs, wrapper=wrapper)
                           for xml_data in response_xml_data]
             if filtered:
                 if callable(filtered):

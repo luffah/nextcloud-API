@@ -3,6 +3,7 @@
 Extra tools for value parsing
 """
 from datetime import datetime
+from nextcloud.compat import datetime_to_timestamp
 
 
 def timestamp_to_epoch_time(rfc1123_date=''):
@@ -18,9 +19,9 @@ def timestamp_to_epoch_time(rfc1123_date=''):
         int or None : Epoch time, if date string value is invalid return None
     """
     try:
-        epoch_time = datetime.strptime(
-            rfc1123_date, '%a, %d %b %Y %H:%M:%S GMT').timestamp()
+        _time = datetime.strptime(
+            rfc1123_date, '%a, %d %b %Y %H:%M:%S GMT')
     except ValueError:
         return
     else:
-        return int(epoch_time)
+        return datetime_to_timestamp(_time)
