@@ -7,7 +7,7 @@ import re
 import os
 try:
     import pathlib
-except:
+except ImportError:
     import pathlib2 as pathlib
 
 import xml.etree.ElementTree as ET
@@ -32,7 +32,7 @@ class File(PropertySet):
     Additionnally, provide an objective CRUD API
     (that probably consume more energy than fetching specific attributes)
 
-    Example : 
+    Example :
     >>> root = nxc.get_folder()  # get root
     >>> def _list_rec(d, indent=""):
     >>>     # list files recursively
@@ -43,12 +43,19 @@ class File(PropertySet):
     >>>
     >>> _list_rec(root)
     """
+
+    @staticmethod
+    def _extract_resource_type(file_property):
+        file_type = list(file_property)
+        if file_type:
+            return re.sub('{.*}', '', file_type[0].tag)
+        return None
+
     _attrs = [
         Prop('d:getlastmodified'),
         Prop('d:getetag'),
         Prop('d:getcontenttype'),
-        Prop('d:resourcetype', parse_xml_value=(
-            lambda p: File._extract_resource_type(p))),
+        Prop('d:resourcetype', parse_xml_value=File._extract_resource_type),
         Prop('d:getcontentlength'),
         Prop('oc:id'),
         Prop('oc:fileid'),
@@ -64,13 +71,6 @@ class File(PropertySet):
         Prop('oc:href'),
         Prop('nc:has-preview')
     ]
-
-    @staticmethod
-    def _extract_resource_type(file_property):
-        file_type = list(file_property)
-        if file_type:
-            return re.sub('{.*}', '', file_type[0].tag)
-        return None
 
     def isfile(self):
         """ say if the file is a file /!\\ ressourcetype property shall be loaded """
@@ -105,32 +105,38 @@ class File(PropertySet):
     def get_folder(self, path=None):
         """
         Get folder (see WebDav wrapper)
-        :param subpath: if empty list current dir
+        :param path: if empty list current dir
         :returns: a folder (File object)
 
         Note : To check if sub folder exists, use get_file method
         """
         return self._wrapper.get_folder(self._get_remote_path(path))
 
-    def get_folder(self, path=None):
+    def get_file(self, path=None):
         """
-        Get folder (see WebDav wrapper)
-        :param subpath: if empty list current dir
+        Get file (see WebDav wrapper)
+        :param path: if empty list current dir
         :returns: a file or folder (File object)
         """
         return self._wrapper.get_file(self._get_remote_path(path))
 
-    def list(self, subpath=''):
+    def list(self, subpath='', filter_rules=None):
         """
         List folder (see WebDav wrapper)
         :param subpath: if empty list current dir
         :returns: list of Files
         """
-        resp = self._wrapper.list_folders(
-            self._get_remote_path(subpath),
-            depth=1,
-            all_properties=True
-        )
+        if filter_rules:
+            resp = self._wrapper.list_files_with_filter(
+                path=self._get_remote_path(subpath),
+                filter_rules=filter_rules
+            )
+        else:
+            resp = self._wrapper.list_folders(
+                self._get_remote_path(subpath),
+                depth=1,
+                all_properties=True
+            )
         if resp.is_ok and resp.data:
             _dirs = resp.data
             # remove current dir
@@ -146,8 +152,8 @@ class File(PropertySet):
         :returns: True if success
         """
         resp = self._wrapper.upload_file(local_filepath,
-                                 self._get_remote_path(name),
-                                 timestamp=timestamp)
+                                         self._get_remote_path(name),
+                                         timestamp=timestamp)
         return resp.is_ok
 
     def download(self, name=None, target_dir=None):
@@ -158,7 +164,7 @@ class File(PropertySet):
         """
         path = self._get_remote_path(name)
         target_path, _file_info = self._wrapper.download_file(path,
-                                                        target_dir=target_dir)
+                                                              target_dir=target_dir)
         assert os.path.isfile(target_path), "Download failed"
         return target_path
 
@@ -179,8 +185,7 @@ class WebDAV(WebDAVApiWrapper):
     def _get_path(self, path):
         if path:
             return '/'.join([self.client.user, path]).replace('//', '/')
-        else:
-            return self.client.user
+        return self.client.user
 
     def list_folders(self, path=None, depth=1, all_properties=False,
                      fields=None):
@@ -227,7 +232,7 @@ class WebDAV(WebDAVApiWrapper):
             a tuple (target_path, File object)
         """
         if not target_dir:
-            target_dir='./'
+            target_dir = './'
         filename = path.split('/')[(-1)] if '/' in path else path
         file_data = self.get_file(path)
         if not file_data:
@@ -373,6 +378,46 @@ class WebDAV(WebDAVApiWrapper):
                                        destination_path),
                                    overwrite=overwrite)
 
+    def set_file_property(self, path, update_rules):
+        """
+        Set file property
+
+        Args:
+            path (str): file or folder path to make favorite
+            update_rules : a dict { namespace: {key : value } }
+
+        Returns:
+            requester response with <list>File in data
+
+        Note :
+            check keys in nextcloud.common.properties.NAMESPACES_MAP for namespace codes
+            check object property xml_name for property name
+        """
+        data = File.build_xml_propupdate(update_rules)
+        return self.requester.proppatch(additional_url=self._get_path(path), data=data)
+
+    def list_files_with_filter(self, path='', filter_rules=''):
+        """
+        List files according to a filter
+
+        Args:
+            path (str): file or folder path to search
+            filter_rules : a dict { namespace: {key : value } }
+
+        Returns:
+            requester response with <list>File in data
+
+        Note :
+            check keys in nextcloud.common.properties.NAMESPACES_MAP for namespace codes
+            check object property xml_name for property name
+        """
+        data = File.build_xml_propfind(
+            instr='oc:filter-files', filter_rules=filter_rules)
+        resp = self.requester.report(
+            additional_url=self._get_path(path), data=data)
+        return File.from_response(resp, json_output=self.json_output,
+                                  wrapper=self)
+
     def set_favorites(self, path):
         """
         Set files of a user favorite
@@ -383,27 +428,21 @@ class WebDAV(WebDAVApiWrapper):
         Returns:
             requester response
         """
-        data = File.build_xml_propupdate({'oc': {'favorite': 1}})
-        return self.requester.proppatch(additional_url=self._get_path(path), data=data)
+        return self.set_file_property(path, {'oc': {'favorite': 1}})
 
     def list_favorites(self, path=''):
         """
         List favorites (files) of the user
 
         Args:
-            path (str): file or folder path to make favorite
+            path (str): file or folder path to search favorite
 
         Returns:
             requester response with <list>File in data
         """
-        data = File.build_xml_propfind(
-            instr='oc:filter-files', filter_rules={'oc': {'favorite': 1}})
-        resp = self.requester.report(
-            additional_url=self._get_path(path), data=data)
-        return File.from_response(resp, json_output=self.json_output,
-                                  wrapper=self)
+        return self.list_files_with_filter(path, {'oc': {'favorite': 1}})
 
-    def get_file_property(self, path, field, tag='oc'):
+    def get_file_property(self, path, field, ns='oc'):
         """
         Fetch asked properties from a file path.
 
@@ -415,9 +454,9 @@ class WebDAV(WebDAVApiWrapper):
             requester response with asked value in data
         """
         if ':' in field:
-            tag, field = field.split(':')
-        get_file_prop_xpath = '{DAV:}propstat/d:prop/%s:%s' % (tag, field)
-        data = File.build_xml_propfind(fields={tag: [field]})
+            ns, field = field.split(':')
+        get_file_prop_xpath = '{DAV:}propstat/d:prop/%s:%s' % (ns, field)
+        data = File.build_xml_propfind(fields={ns: [field]})
         resp = self.requester.propfind(additional_url=(self._get_path(path)), headers={'Depth': str(0)},
                                        data=data)
         response_data = resp.data

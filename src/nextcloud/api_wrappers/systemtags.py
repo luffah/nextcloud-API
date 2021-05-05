@@ -63,7 +63,7 @@ class SystemTags(WebDAVApiWrapper):
         :param name:  tag name
         :returns: requester response with tag id as data
         """
-        data = Tag.default_get(name=name, **kwargs)
+        data = Tag.default_get(display_name=name, **kwargs)
         resp = self.requester.post(
             data=json.dumps(data),
             headers={
@@ -139,9 +139,9 @@ class SystemTagsRelation(WebDAVApiWrapper):
         resp = self.requester.propfind(additional_url=file_id, data=data)
         return Tag.from_response(resp, json_output=(self.json_output))
 
-    def delete_systemtags_relation(self, file_id=None, tag_id=None, **kwargs):
+    def remove_systemtags_relation(self, file_id=None, tag_id=None, **kwargs):
         """
-        Delete a tag from a given file/folder
+        Remove a tag from a given file/folder
 
         :param file_id (int): id found in file object
         :param tag_id  (int): id found in tag object
@@ -152,6 +152,10 @@ class SystemTagsRelation(WebDAVApiWrapper):
         """
         file_id, tag_id = self._arguments_get([
             'file_id', 'tag_id'], dict(file_id=file_id, tag_id=tag_id, **kwargs))
+        if not file_id:
+            raise ValueError('No file found')
+        if not tag_id:
+            raise ValueError('No tag found (%s)' % kwargs.get('tag_name', None))
         resp = self.requester.delete(url=('{}/{}'.format(file_id, tag_id)))
         return resp
 
@@ -168,13 +172,17 @@ class SystemTagsRelation(WebDAVApiWrapper):
         """
         file_id, tag_id = self._arguments_get([
             'file_id', 'tag_id'], locals())
-        if not tag_id:
-            if 'tag_name' in kwargs:
-                resp = self.client.create_systemtag(kwargs['tag_name'])
-                if not resp.is_ok:
-                    return resp
-                tag_id = resp.data
         if not file_id:
             raise ValueError('No file found')
-        resp = self.requester.put(url=('{}/{}'.format(file_id, tag_id)))
+        if not tag_id:
+            data = Tag.default_get(display_name=kwargs.get('tag_name'), **kwargs)
+            resp = self.requester.post(
+                url=file_id,
+                data=json.dumps(data),
+                headers={'Content-Type': 'application/json'})
+            # resp = self.client.create_systemtag(kwargs['tag_name'])
+            # if not resp.is_ok:
+            return resp
+            # tag_id = resp.data
+        resp = self.requester.put(url='{}/{}'.format(file_id, tag_id))
         return resp
