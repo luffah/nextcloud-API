@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 GroupFolders API wrapper
-See https://apps.nextcloud.com/apps/groupfolders
+See https://github.com/nextcloud/groupfolders
+    https://apps.nextcloud.com/apps/groupfolders
 """
 from nextcloud import base
 

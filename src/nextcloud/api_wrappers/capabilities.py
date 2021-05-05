@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Capabilities API wrapper
-See https://doc.owncloud.com/server/developer_manual/core/apis/ocs-capabilities.html
+See https://docs.nextcloud.com/server/14/developer_manual/client_apis/OCS/index.html#capabilities-api
+    https://doc.owncloud.com/server/developer_manual/core/apis/ocs-capabilities.html
 """
 from nextcloud import base
 

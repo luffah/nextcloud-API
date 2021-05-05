@@ -34,6 +34,9 @@ class PropertySet(object):
             if getattr(k, attr) == key:
                 return k
 
+    def __repr__(self, add_info=''):
+        return "<%s %s%s>" % (self.__class__.__name__, self.href, add_info)
+
     def __init__(self, xml_data, init_attrs=False, wrapper=None):
         if init_attrs:
             for attr in self._attrs:
@@ -101,7 +104,10 @@ class PropertySet(object):
             if filtered:
                 if callable(filtered):
                     attr_datas = [
-                        attr_data for attr_data in attr_datas if filtered(attr_data)]
+                        attr_data
+                        for attr_data in attr_datas
+                        if filtered(attr_data)
+                    ]
             resp.data = attr_datas if not json_output else [
                 attr_data.as_dict() for attr_data in attr_datas]
             return resp

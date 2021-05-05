@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Activity API wrapper
-See https://doc.owncloud.com/server/user_manual/apps/activity.html
+See https://github.com/nextcloud/activity
+    https://doc.owncloud.com/server/user_manual/apps/activity.html
     https://doc.owncloud.com/server/developer_manual/core/apis/
 """
 from nextcloud import base

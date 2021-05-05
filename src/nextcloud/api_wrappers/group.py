@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Group API wrapper
-See https://doc.owncloud.com/server/developer_manual/core/apis/provisioning-api.html
+See https://docs.nextcloud.com/server/14/admin_manual/configuration_user/instruction_set_for_groups.html
+    https://docs.nextcloud.com/server/14/admin_manual/configuration_user/user_provisioning_api.html
+    https://doc.owncloud.com/server/developer_manual/core/apis/provisioning-api.html
 """
 from nextcloud.base import ProvisioningApiWrapper
 

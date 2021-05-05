@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 User LDAP wrapper
-See https://doc.owncloud.com/server/10.7/admin_manual/configuration/server/occ_commands/app_commands/ldap_integration_commands.html
+See https://docs.nextcloud.com/server/14/admin_manual/configuration_user/user_auth_ldap_api.html
+    https://doc.owncloud.com/server/10.7/admin_manual/configuration/server/occ_commands/app_commands/ldap_integration_commands.html
 """
 import re
 from nextcloud import base

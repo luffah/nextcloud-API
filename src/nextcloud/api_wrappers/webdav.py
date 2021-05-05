@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 WebDav API wrapper
-See https://doc.owncloud.com/server/developer_manual/webdav_api/tags.html
+See https://docs.nextcloud.com/server/14/developer_manual/client_apis/WebDAV/index.html
+    https://doc.owncloud.com/server/developer_manual/webdav_api/tags.html
 """
 import re
 import os
@@ -55,7 +56,7 @@ class File(PropertySet):
         Prop('d:getlastmodified'),
         Prop('d:getetag'),
         Prop('d:getcontenttype'),
-        Prop('d:resourcetype', parse_xml_value=File._extract_resource_type),
+        Prop('d:resourcetype', parse_xml_value=(lambda p: File._extract_resource_type(p))),
         Prop('d:getcontentlength'),
         Prop('oc:id'),
         Prop('oc:fileid'),
@@ -127,7 +128,7 @@ class File(PropertySet):
         :returns: list of Files
         """
         if filter_rules:
-            resp = self._wrapper.list_files_with_filter(
+            resp = self._wrapper.fetch_files_with_filter(
                 path=self._get_remote_path(subpath),
                 filter_rules=filter_rules
             )
@@ -387,7 +388,7 @@ class WebDAV(WebDAVApiWrapper):
             update_rules : a dict { namespace: {key : value } }
 
         Returns:
-            requester response with <list>File in data
+            requester response with list<File> in data
 
         Note :
             check keys in nextcloud.common.properties.NAMESPACES_MAP for namespace codes
@@ -396,7 +397,7 @@ class WebDAV(WebDAVApiWrapper):
         data = File.build_xml_propupdate(update_rules)
         return self.requester.proppatch(additional_url=self._get_path(path), data=data)
 
-    def list_files_with_filter(self, path='', filter_rules=''):
+    def fetch_files_with_filter(self, path='', filter_rules=''):
         """
         List files according to a filter
 
@@ -405,7 +406,7 @@ class WebDAV(WebDAVApiWrapper):
             filter_rules : a dict { namespace: {key : value } }
 
         Returns:
-            requester response with <list>File in data
+            requester response with list<File> in data
 
         Note :
             check keys in nextcloud.common.properties.NAMESPACES_MAP for namespace codes
@@ -438,9 +439,9 @@ class WebDAV(WebDAVApiWrapper):
             path (str): file or folder path to search favorite
 
         Returns:
-            requester response with <list>File in data
+            requester response with list<File> in data
         """
-        return self.list_files_with_filter(path, {'oc': {'favorite': 1}})
+        return self.fetch_files_with_filter(path, {'oc': {'favorite': 1}})
 
     def get_file_property(self, path, field, ns='oc'):
         """

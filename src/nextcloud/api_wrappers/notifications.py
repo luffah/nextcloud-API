@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Notification API wrapper
-See https://doc.owncloud.com/server/developer_manual/core/apis/ocs-notification-endpoint-v1.html
-See https://docs.nextcloud.com/server/latest/developer_manual/client_apis/OCS/ocs-api-overview.html?highlight=notification#notifications
+See https://github.com/nextcloud/notifications/
+    https://doc.owncloud.com/server/developer_manual/core/apis/ocs-notification-endpoint-v1.html
+    https://docs.nextcloud.com/server/latest/developer_manual/client_apis/OCS/ocs-api-overview.html?highlight=notification#notifications
 """
 from nextcloud import base
 

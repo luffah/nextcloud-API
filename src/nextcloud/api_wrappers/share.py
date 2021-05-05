@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Share API wrapper
-See https://doc.owncloud.com/server/developer_manual/core/apis/ocs-share-api.html
 See https://docs.nextcloud.com/server/latest/developer_manual/client_apis/OCS/ocs-share-api.html
+    https://doc.owncloud.com/server/developer_manual/core/apis/ocs-share-api.html
 """
 from nextcloud import base
 from nextcloud.codes import ShareType
