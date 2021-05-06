@@ -171,13 +171,29 @@ class File(PropertySet):
     def upload_file(self, local_filepath, name, timestamp=None):
         """
         Upload file (see WebDav wrapper)
+        :param local_filepath: path of the local file
         :param name: name of the new file
+        :param timestamp (int): timestamp of upload file. If None, get time by local file.
         :returns: True if success
         """
         resp = self._wrapper.upload_file(local_filepath,
                                          self._get_remote_path(name),
                                          timestamp=timestamp)
         return resp.is_ok
+
+    def upload_file_contents(self, file_contents, name=None, timestamp=None):
+        """
+        Upload file content (see WebDav wrapper)
+        :param file_contents: binary content of the file
+        :param name: name of the new file (current file if empty)
+        :param timestamp (int):  mtime of upload file
+        :returns: True if success
+        """
+        resp = self._wrapper.upload_file_contents(file_contents,
+                                         self._get_remote_path(name),
+                                         timestamp=timestamp)
+        return resp.is_ok
+
 
     def download(self, name=None, target_dir=None):
         """
@@ -332,8 +348,8 @@ class WebDAV(WebDAVApiWrapper):
         Returns:
             requester response
         """
-        return self.requester.put_with_timestamp((self._get_path(remote_filepath)), data=file_contents,
-                                                 timestamp=timestamp)
+        return self.requester.put_with_timestamp(
+            self._get_path(remote_filepath), data=file_contents, timestamp=timestamp)
 
     def create_folder(self, folder_path):
         """
