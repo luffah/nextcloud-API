@@ -2,8 +2,18 @@
 """
 WebDav API wrapper
 See https://docs.nextcloud.com/server/14/developer_manual/client_apis/WebDAV/index.html
-    https://doc.owncloud.com/server/developer_manual/webdav_api/tags.html
+    https://doc.owncloud.com/server/developer_manual/webdav_api/search.html
+    https://docs.nextcloud.com/server/14/developer_manual/client_apis/WebDAV/search.html
+
+Not implemented yet:
+   - search feature
+   - trash
+   - versions
+   - chunked file upload
 """
+# implementing dav search
+#-> add a function to build xml search
+#   see ../common/simplexml.py and ../common/collections.py
 import re
 import os
 try:
@@ -21,6 +31,9 @@ from nextcloud.common.value_parsing import (
     datetime_to_timestamp
 )
 
+
+class NextCloudDirectoryNotEmpty(Exception):
+    """ Exception to raise when you try to remove a folder that is not empty"""
 
 class NextCloudFileConflict(Exception):
     """ Exception to raise when you try to create a File that alreay exists """
@@ -77,6 +90,10 @@ class File(PropertySet):
         """ say if the file is a file /!\\ ressourcetype property shall be loaded """
         return not self.resource_type
 
+    def isroot(self):
+        """ say if the file is a directory /!\\ ressourcetype property shall be loaded """
+        return not self.get_relative_path().replace('/','')
+
     def isdir(self):
         """ say if the file is a directory /!\\ ressourcetype property shall be loaded """
         return self.resource_type == self.COLLECTION_RESOURCE_TYPE
@@ -103,28 +120,33 @@ class File(PropertySet):
         return self.href == b.href
 
     # MINIMAL SET OF CRUD OPERATIONS
-    def get_folder(self, path=None):
+    def get_folder(self, path=None, all_properties=False):
         """
         Get folder (see WebDav wrapper)
         :param path: if empty list current dir
+        :param all_properties: fetch all properties (default False)
         :returns: a folder (File object)
 
         Note : To check if sub folder exists, use get_file method
         """
-        return self._wrapper.get_folder(self._get_remote_path(path))
+        return self._wrapper.get_folder(self._get_remote_path(path),
+                                        all_properties=all_properties)
 
-    def get_file(self, path=None):
+    def get_file(self, path=None, all_properties=False):
         """
         Get file (see WebDav wrapper)
-        :param path: if empty list current dir
+        :param path: if empty, get current file
+        :param all_properties: fetch all properties (default False)
         :returns: a file or folder (File object)
         """
-        return self._wrapper.get_file(self._get_remote_path(path))
+        return self._wrapper.get_file(self._get_remote_path(path),
+                                      all_properties=all_properties)
 
-    def list(self, subpath='', filter_rules=None):
+    def list(self, subpath='', filter_rules=None, all_properties=False):
         """
         List folder (see WebDav wrapper)
         :param subpath: if empty list current dir
+        :param all_properties: fetch all properties (default False)
         :returns: list of Files
         """
         if filter_rules:
@@ -136,7 +158,7 @@ class File(PropertySet):
             resp = self._wrapper.list_folders(
                 self._get_remote_path(subpath),
                 depth=1,
-                all_properties=True
+                all_properties=all_properties
             )
         if resp.is_ok and resp.data:
             _dirs = resp.data
@@ -159,7 +181,7 @@ class File(PropertySet):
 
     def download(self, name=None, target_dir=None):
         """
-         file (see WebDav wrapper)
+        Download file (see WebDav wrapper)
         :param name: name of the new file
         :returns: True if success
         """
@@ -169,13 +191,33 @@ class File(PropertySet):
         assert os.path.isfile(target_path), "Download failed"
         return target_path
 
-    def delete(self, subpath=''):
+    def isempty(self):
+        """
+        Say if a folder is emty (always False if not a directory)
+        :returns: True if current dir is empty
+        """
+        if not self.isdir():
+            return False
+        return not self.list()
+
+
+    def delete(self, subpath='', recursive=False):
         """
         Delete file or folder (see WebDav wrapper)
         :param subpath: if empty, delete current file
+        :param recursive: delete recursively
         :returns: True if success
         """
-        resp = self._wrapper.delete_path(self._get_remote_path(subpath))
+        if recursive:
+            resp = self._wrapper.delete_path(self._get_remote_path(subpath))
+        else:
+            if subpath:
+                _file = self.get_file(subpath, all_properties=False)
+                return _file.delete(recursive=recursive)
+            if not self.isempty():
+                raise NextCloudDirectoryNotEmpty(self.get_relative_path())
+            return self.delete(recursive=True)
+
         return resp.is_ok
 
 
@@ -474,7 +516,7 @@ class WebDAV(WebDAVApiWrapper):
 
         return resp
 
-    def get_file(self, path):
+    def get_file(self, path, all_properties=False):
         """
         Return the File object associated to the path
 
@@ -482,13 +524,13 @@ class WebDAV(WebDAVApiWrapper):
         :returns: File object or None
         """
         resp = self.client.with_attr(json_output=False).list_folders(
-            path, all_properties=True, depth=0)
+            path, all_properties=all_properties, depth=0)
         if resp.is_ok:
             if resp.data:
                 return resp.data[0]
         return None
 
-    def get_folder(self, path=None):
+    def get_folder(self, path=None, all_properties=False):
         """
         Return the File object associated to the path
         If the file (folder or 'collection') doesn't exists, create it.
@@ -496,13 +538,13 @@ class WebDAV(WebDAVApiWrapper):
         :param path: path to the file/folder, if empty use root
         :returns: File object
         """
-        fileobj = self.get_file(path)
+        fileobj = self.get_file(path, all_properties=all_properties)
         if fileobj:
             if not fileobj.isdir():
                 raise NextCloudFileConflict(fileobj.href)
         else:
             self.client.create_folder(path)
-            fileobj = self.get_file(path)
+            fileobj = self.get_file(path, all_properties=all_properties)
 
         return fileobj
 
