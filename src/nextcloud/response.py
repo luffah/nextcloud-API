@@ -20,7 +20,7 @@ class BaseResponse(object):
     def __init__(self, response, data=None, json_output=True,
                  status_code=None, success_code=None, **kwargs):
         self.raw = response
-        self.data = data or (
+        self.data = data if data is not None else (
             response.json() if json_output else response.content.decode('UTF-8')
         )
         self.status_code = status_code or response.status_code
@@ -58,16 +58,22 @@ class OCSResponse(BaseResponse):
         full_data = None
         meta = None
         status_code = None
-
         if (success_code or json_output):
             try:
                 full_data = response.json()
-                meta = full_data['ocs']['meta']
-                status_code = meta['statuscode']
-                if json_output:
-                    data = full_data['ocs']['data']
+                if 'ocs' in full_data:
+                    ocs_data = full_data['ocs']
+                    meta = ocs_data['meta']
+                    status_code = meta['statuscode']
+                    if json_output:
+                        data = ocs_data['data']
+                else:
+                    data = full_data
+                    meta = data
+                    status_code = -1
             except JSONDecodeError:
                 data = {'message': 'Unable to parse JSON response'}
+                meta = data
                 status_code = -1
 
         super(OCSResponse, self).__init__(response, data=data,

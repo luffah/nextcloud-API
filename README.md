@@ -13,7 +13,7 @@ This is Python wrapper for NextCloud's API.
 With it you can manage your NextCloud instances from Python scripts.
 
 Tested with :
-  * NextCloud 14, python 3.7
+  * NextCloud 14, python 3.7 (automated test)
   * NextCloud 20, python 2.7
   * NextCloud 20, python 3.6
 

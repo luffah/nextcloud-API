@@ -10,6 +10,10 @@ from nextcloud.common.properties import NAMESPACES_MAP
 def _prepare_xml_parsing(string):
     return encode_string(string)
 
+def _safe_xml_val(val):
+    if isinstance(val, int):
+        val = str(val)
+    return val
 
 class SimpleXml:
     """
@@ -40,7 +44,7 @@ class SimpleXml:
             else:
                 vals = fields_hash[field_type]
                 for field in vals:
-                    props_xml['{}:{}'.format(field_type, field)] = vals[field]
+                    props_xml['{}:{}'.format(field_type, field)] = _safe_xml_val(vals[field])
 
         return props_xml
 
@@ -86,9 +90,7 @@ class SimpleXml:
             for k in rules:
                 rule = ET.SubElement(rule_group, k)
                 val = rules[k]
-                if isinstance(val, int):
-                    val = str(val)
-                rule.text = val
+                rule.text = _safe_xml_val(val)
 
         return cls._tostring(root)
 

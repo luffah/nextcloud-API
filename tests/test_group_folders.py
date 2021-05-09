@@ -1,4 +1,5 @@
-from nextcloud.base import Permission, QUOTA_UNLIMITED
+# -*- coding: utf-8 -*-
+from nextcloud.codes import Permission, QUOTA_UNLIMITED
 
 from .base import BaseTestCase
 
@@ -54,10 +55,12 @@ class TestGroupFolders(BaseTestCase):
         # create new group folder
         folder_mount_point = "test_access_" + self.get_random_string(length=4)
         res = self.nxc.create_group_folder(folder_mount_point)
+        assert res.is_ok
         group_folder_id = res.data['id']
 
         # assert that no groups have access to just created folder
         res = self.nxc.get_group_folder(group_folder_id)
+        assert res.is_ok
         assert len(res.data['groups']) == 0
 
         # grant access to group
@@ -85,10 +88,12 @@ class TestGroupFolders(BaseTestCase):
         # create new group folder
         folder_mount_point = "test_folder_quotas_" + self.get_random_string(length=4)
         res = self.nxc.create_group_folder(folder_mount_point)
+        assert res.is_ok
         group_folder_id = res.data['id']
 
         # assert quota is unlimited by default
         res = self.nxc.get_group_folder(group_folder_id)
+        assert res.is_ok
         assert int(res.data['quota']) == QUOTA_UNLIMITED
 
         # set quota
@@ -97,6 +102,7 @@ class TestGroupFolders(BaseTestCase):
         assert res.is_ok and res.data is True
         # check if quota changed
         res = self.nxc.get_group_folder(group_folder_id)
+        assert res.is_ok
         assert str(res.data['quota']) == str(QUOTA_ONE_GB)
 
         # clear
@@ -110,6 +116,7 @@ class TestGroupFolders(BaseTestCase):
         # create new group folder
         folder_mount_point = "test_folder_permissions_" + self.get_random_string(length=4)
         res = self.nxc.create_group_folder(folder_mount_point)
+        assert res.is_ok
         group_folder_id = res.data['id']
 
         # add new group to folder

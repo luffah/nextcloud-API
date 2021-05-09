@@ -71,17 +71,19 @@ class NextCloud(object):
                                   client=self)
 
     def with_attr(self, **kwargs):
-        if 'auth' in kwargs:
+        if 'auth' in kwargs or 'endpoint' in kwargs or 'endpoint' in kwargs:
             return self.with_auth(**kwargs)
         if 'session_kwargs' in kwargs:
-            return self.with_auth(self.session.auth, **kwargs)
+            return self.with_auth(auth=self.session.auth, **kwargs)
         return self.__class__(session=self.session, **kwargs)
 
     def with_auth(self, auth=None, **kwargs):
         init_kwargs = {'session_kwargs': self.session._session_kwargs,
                        'json_output': self.json_output}
         init_kwargs.update(kwargs)
-        return self.__class__(self.session.url, auth=auth, **init_kwargs)
+        if 'endpoint' in kwargs:
+            return self.__class__(auth=auth, **init_kwargs)
+        return self.__class__(endpoint=self.session.url, auth=auth, **init_kwargs)
 
     def logout(self):
         if self.session.session:

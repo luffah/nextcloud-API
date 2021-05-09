@@ -1,38 +1,31 @@
+"""
+Setup script
+
+Usage :
+    python setup.py build
+    python setup.py install
+
+For repository admin:
+    python setup.py publish
+
+For testing:
+    test.sh
+"""
 import os
-import setuptools
+import sys
+from setuptools import setup, find_packages
 
-SETUPDIR = os.path.dirname(__file__)
-PKGDIR = os.path.join(SETUPDIR, 'src')
+# 'setup.py publish' shortcut.
+if sys.argv[-1] == 'publish':
+    # see https://twine.readthedocs.io/en/latest/
+    os.system('%s %s sdist bdist_wheel' % (sys.executable, sys.argv[0]))
+    os.system('twine upload dist/*')
+    sys.exit()
 
-with open(os.path.join(SETUPDIR, 'README.md'), 'r') as f:
-    long_description = f.read()
-
-
-setuptools.setup(
-    name='nextcloud',
-    version='0.0.2',
-    author='EnterpriseyIntranet',
-    description="Python wrapper for NextCloud api",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url="https://github.com/EnterpriseyIntranet/nextcloud-API",
-    packages=setuptools.find_packages(PKGDIR),
-    include_package_data=True,
-    install_requires=[
-        'requests >= 2.0.1',
-        'six'
-    ],
-    package_dir={'': 'src'},
-    classifiers=[
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 3',
-        'Development Status :: 4 - Beta',
-        'Environment :: Web Environment',
-        'Intended Audience :: Developers',
-        'Topic :: Internet :: WWW/HTTP',
-        'Topic :: Software Development :: Libraries :: Python Modules',
-        'License :: OSI Approved :: GNU General Public License (GPL)',
-        "Operating System :: OS Independent",
-    ],
+setup(
+    # see setup.cfg
+    # some variables are defined here for retro compat with setuptools >= 33
+    package_dir = {'': 'src'},
+    packages=find_packages(where=r'./src'),
+    long_description_content_type = 'text/markdown'
 )

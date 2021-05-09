@@ -4,15 +4,5 @@
 #
 #    pip-compile --output-file requirements.txt requirements.in
 #
-atomicwrites==1.2.1       # via pytest
-attrs==18.2.0             # via pytest
-certifi==2018.11.29       # via requests
-chardet==3.0.4            # via requests
-idna==2.7                 # via requests
-more-itertools==4.3.0     # via pytest
-pluggy==0.8.0             # via pytest
-py==1.7.0                 # via pytest
-pytest==4.0.1
+pytest==4.6.1
 requests==2.20.1
-six==1.11.0               # via more-itertools, pytest
-urllib3==1.24.1           # via requests

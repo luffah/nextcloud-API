@@ -1,5 +1,9 @@
 import re
-from unittest.mock import patch
+try:
+    from unittest.mock import patch
+except ImportError:
+    import unittest
+    from mock import patch
 
 from .base import BaseTestCase
 

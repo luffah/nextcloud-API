@@ -37,6 +37,16 @@ class Tag(PropertySet):
         )
         return ret.data or []
 
+    def delete(self):
+        """
+        Delete current tag
+
+        :returns: True if success
+        """
+        _id = int(self.id)
+        ret = self._wrapper.delete_systemtag(tag_id=_id)
+        return ret.is_ok
+
 
 class File(webdav.File):
 
@@ -114,11 +124,11 @@ class SystemTags(WebDAVApiWrapper):
         :returns: Tag
         """
         return self._get_tags_from_response(
-            self.fetch_sytemtag(name, json_output=False),
+            self.fetch_systemtag(name, json_output=False),
             one=True
         )
 
-    def fetch_sytemtag(self, name, fields=None, json_output=None):
+    def fetch_systemtag(self, name, fields=None, json_output=None):
         """
         Get attributes of a nammed tag
 
@@ -181,11 +191,11 @@ class SystemTags(WebDAVApiWrapper):
         :returns: requester response
         """
         if not tag_id:
-            resp = self.get_sytemtag(name, ['id'], json_output=False)
+            resp = self.fetch_systemtag(name, ['id'], json_output=False)
             if resp.data:
                 tag_id = resp.data[0].id
-        if not tag_id:  # lint only
-            return None
+            if not tag_id:  # lint only
+                return resp
         resp = self.requester.delete(url=(str(tag_id)))
         return resp
 
@@ -203,7 +213,7 @@ class SystemTagsRelation(WebDAVApiWrapper):
         return _id
 
     def _get_systemtag_id_from_name(self, name):
-        resp = self.client.fetch_sytemtag(name, ['id'], json_output=False)
+        resp = self.client.fetch_systemtag(name, ['id'], json_output=False)
         tag_id = None
         if resp.data:
             tag_id = int(resp.data[0].id)

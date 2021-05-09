@@ -20,3 +20,8 @@ Run tests:
 Run examples:
 
     docker-compose run --rm python-api python ../examples/user_management.py
+
+# How to configure test container
+
+The file `docker-compose.yml` use variables defined in the file `.env`.
+Just edit this file.

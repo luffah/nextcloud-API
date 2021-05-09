@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from .base import BaseTestCase
 
 
@@ -9,7 +10,7 @@ class TestNotifications(BaseTestCase):
         all_data = res.data
         assert res.is_ok
 
-        if len(all_data):
+        if all_data:
             notification = all_data[0]
 
             # get single notification

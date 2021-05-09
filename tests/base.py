@@ -3,13 +3,31 @@ import random
 import string
 from unittest import TestCase
 
-from nextcloud import NextCloud
+from nextcloud import NextCloud as _NextCloud
 
 NEXTCLOUD_VERSION = os.environ.get('NEXTCLOUD_VERSION')
-NEXTCLOUD_URL = "http://{}:80".format(os.environ.get('NEXTCLOUD_HOSTNAME', 'localhost'))
+NEXTCLOUD_HOSTNAME = os.environ.get('NEXTCLOUD_HOSTNAME', 'localhost')
+NEXTCLOUD_URL = ("https://{}" if '.' in NEXTCLOUD_HOSTNAME else "http://{}:80"
+                 ).format(NEXTCLOUD_HOSTNAME)  # every host.domain
+                                               # probably works with SSL
 NEXTCLOUD_USERNAME = os.environ.get('NEXTCLOUD_ADMIN_USER', 'admin')
 NEXTCLOUD_PASSWORD = os.environ.get('NEXTCLOUD_ADMIN_PASSWORD', 'admin')
+NEXTCLOUD_SSL_ENABLED = os.environ.get('NEXTCLOUD_SSL_ENABLED', '1') == '1'
 
+if not NEXTCLOUD_SSL_ENABLED:
+    import urllib3
+    urllib3.disable_warnings()
+
+class NextCloud(_NextCloud):
+
+    def __init__(self, endpoint=None, user=None, password=None,
+                 session_kwargs=None, **kwargs):
+        session_kwargs = session_kwargs.copy() if session_kwargs else {}
+        session_kwargs.update({'verify': NEXTCLOUD_SSL_ENABLED})
+        super(NextCloud, self).__init__(
+            endpoint=endpoint, user=user, password=password,
+            session_kwargs=session_kwargs, **kwargs
+        )
 
 class BaseTestCase(TestCase):
 

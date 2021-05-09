@@ -1,7 +1,9 @@
+# -*- coding: utf-8 -*-
 import requests
 from datetime import datetime, timedelta
 
-from nextcloud.base import ShareType, Permission, datetime_to_expire_date
+from nextcloud.codes import ShareType, Permission
+from nextcloud.common.value_parsing import datetime_to_expire_date
 
 from .base import BaseTestCase, LocalNxcUserMixin
 

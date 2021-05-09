@@ -4,7 +4,7 @@ Define requesters
 """
 from .response import WebDAVResponse, OCSResponse
 from .compat import encode_string
-from .session import catch_connection_error
+from .session import catch_connection_error, NextCloudConnectionError
 
 
 # from six.moves.urllib import parse
