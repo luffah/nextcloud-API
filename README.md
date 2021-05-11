@@ -31,6 +31,10 @@ Check out the corresponding [nextcloud API documentation](https://nextcloud-api.
 Check out [examples](examples) and also check out the [unit tests directory](tests).
 
 
+#### What is the difference between 'get_' and 'fetch_' methods ?
+If you find similar methods `fetch_` and `get_`, the second one is probaly automatically created.
+Methods nammed `get_` shall returns objects and usually use `fetch_` methods that allows to get a json output too.
+
 #### What do I do if it doesn't work?
 
 Don't run away and open a GitHub issue!

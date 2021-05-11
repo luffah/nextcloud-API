@@ -5,10 +5,10 @@ See https://doc.owncloud.com/server/developer_manual/webdav_api/tags.html
 """
 import json
 from nextcloud.base import WebDAVApiWrapper
+from nextcloud.api import get_one_object, get_object_list
 from nextcloud.common.collections import PropertySet
 from nextcloud.common.properties import Property as Prop
 from nextcloud.api_wrappers import webdav
-
 
 class Tag(PropertySet):
     """ Define a Tag properties"""
@@ -95,73 +95,32 @@ class SystemTags(WebDAVApiWrapper):
     """ SystemTags API wrapper """
     API_URL = '/remote.php/dav/systemtags'
 
-    @classmethod
-    def _get_tags_from_response(cls, ret, one=False):
-        if ret.data:
-            ret = ret.data
-            if ret[0].href.endswith('/'):
-                ret = ret[1:]
-        else:
-            ret = []
-        if one:
-            return ret[0] if ret else None
-        return ret
-
-    def get_systemtags(self):
-        """
-        Get list of all tags
-
-        :returns: list<Tag>
-        """
-        return self._get_tags_from_response(
-            self.fetch_systemtags(json_output=False)
-        )
-
-    def get_systemtag(self, name):
-        """
-        Return a nammed tag
-
-        :returns: Tag
-        """
-        return self._get_tags_from_response(
-            self.fetch_systemtag(name, json_output=False),
-            one=True
-        )
-
-    def fetch_systemtag(self, name, fields=None, json_output=None):
+    @get_one_object(Tag,
+                    filtered=lambda t: t.display_name == name,
+                    skip_first=True, init_attrs=True)
+    def fetch_systemtag(self, name, fields=None):
         """
         Get attributes of a nammed tag
 
         :param name (str): tag name
         :param fields (<list>str): field names
-        :returns: requester response with list<Tag> in data
         """
         if not fields:
             fields = Tag._fields
-        resp = self.requester.propfind(
+        return self.requester.propfind(
             data=Tag.build_xml_propfind(fields={
                 'oc': ['display-name'] + fields
             }))
-        if json_output is None:
-            json_output = self.json_output
-        return Tag.from_response(resp, wrapper=self,
-                                 json_output=json_output,
-                                 init_attrs=True,
-                                 filtered=lambda t: t.display_name == name)
 
-    def fetch_systemtags(self, json_output=None):
+
+    @get_object_list(Tag, skip_first=True)
+    def fetch_systemtags(self):
         """
         List of all tags
-
-        :returns: requester response with list<Tag> in data
         """
-        resp = self.requester.propfind(
+        return self.requester.propfind(
             data=Tag.build_xml_propfind(use_default=True)
         )
-        if json_output is None:
-            json_output = self.json_output
-        return Tag.from_response(resp, wrapper=self,
-                                 json_output=json_output)
 
     def create_systemtag(self, name, **kwargs):
         """
@@ -231,38 +190,18 @@ class SystemTagsRelation(WebDAVApiWrapper):
             raise ValueError('Insufficient infos about the tag')
         return self._get_systemtag_id_from_name(tag_name)
 
-    def get_systemtags_relation(self, file_id=None, **kwargs):
+    @get_object_list(Tag, skip_first=True)
+    def fetch_systemtags_relation(self, file_id=None, **kwargs):
         """
         Get all tags from a given file/folder
 
         :param file_id (int): file id found from file object
         :param path (str): if no file_id provided, path to file/folder
-
-        :returns: requester response with list<Tag> in data
-        """
-        return SystemTags._get_tags_from_response(
-            self.fetch_systemtags_relation(file_id=file_id,
-                                           json_output=False, **kwargs)
-        )
-
-    def fetch_systemtags_relation(self, file_id=None, json_output=None, **kwargs):
-        """
-        Get all tags from a given file/folder
-
-        :param file_id (int): file id found from file object
-        :param path (str): if no file_id provided, path to file/folder
-
-        :returns: requester response with list<Tag> in data
         """
         file_id, = self._arguments_get(['file_id'], dict(file_id=file_id,
                                                          **kwargs))
         data = Tag.build_xml_propfind(use_default=True)
-        resp = self.requester.propfind(additional_url=file_id, data=data)
-        return Tag.from_response(resp,
-                                 json_output=(
-                                     self.json_output if
-                                     json_output is None else json_output)
-                                 )
+        return self.requester.propfind(additional_url=file_id, data=data)
 
     def remove_systemtags_relation(self, file_id=None, tag_id=None, **kwargs):
         """

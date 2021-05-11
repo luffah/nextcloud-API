@@ -1,9 +1,24 @@
 # -*- coding: utf-8 -*-
+"""
+A NextCloud/OwnCloud client.
+
+See NextCloud class for more info.
+"""
 from .session import Session
-from .api_wrappers import API_WRAPPER_CLASSES
+from .api_wrappers import API_WRAPPER_CLASSES, get_wrapper_methods
+import six
+
+# trick to access documentation with an "intelligent" IDE
+class MetaClient(type):
+    def __new__(meta, name, bases, attrs):
+        cls = type.__new__(meta, name, bases, attrs)
+        for wrapper_class in API_WRAPPER_CLASSES:
+            for k, method in get_wrapper_methods(wrapper_class):
+                setattr(cls, k, method)
+        return cls
 
 
-class NextCloud(object):
+class NextCloud(object, six.with_metaclass(MetaClient)):
     """
     A NextCloud/OwnCloud client.
     Provides cookie persistence, connection-pooling, and configuration.
@@ -41,14 +56,8 @@ class NextCloud(object):
         )
         self.json_output = json_output
         for functionality_class in API_WRAPPER_CLASSES:
-            functionality_instance = functionality_class(self)
-            for potential_method in dir(functionality_instance):
-                if not potential_method.startswith('_'):
-                    if not callable(getattr(functionality_instance, potential_method)):
-                        pass
-                    else:
-                        setattr(self, potential_method, getattr(
-                            functionality_instance, potential_method))
+            for k, method in get_wrapper_methods(functionality_class(self)):
+                setattr(self, k, method)
 
     @property
     def user(self):

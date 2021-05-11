@@ -1,4 +1,4 @@
-from nextcloud.base import API_WRAPPER_CLASSES
+from ..base import API_WRAPPER_CLASSES, get_wrapper_methods
 
 from .activity import Activity
 from .apps import Apps
