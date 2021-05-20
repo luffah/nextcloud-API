@@ -87,7 +87,7 @@ case $1 in
       NEXTCLOUD_ADMIN_PASSWORD=$NEXTCLOUD_ADMIN_PASSWORD \
       NEXTCLOUD_ADMIN_USER=$NEXTCLOUD_ADMIN_USER \
       NEXTCLOUD_VERSION=$NEXTCLOUD_VERSION \
-      pytest ..
+      pytest .
     ;;
   *)
     _usage
