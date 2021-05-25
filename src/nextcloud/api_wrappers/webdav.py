@@ -24,6 +24,7 @@ except ImportError:
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from ..base import WebDAVApiWrapper
+from ..exceptions import NextCloudError
 from ..api.model import Item
 from ..api.properties import NAMESPACES_MAP, DProp, OCProp, NCProp
 from ..common.value_parsing import (
@@ -32,12 +33,12 @@ from ..common.value_parsing import (
 )
 
 
-class NextCloudDirectoryNotEmpty(Exception):
-    """ Exception to raise when you try to remove a folder that is not empty"""
+class NextCloudDirectoryNotEmpty(NextCloudError):
+    """ When you try to remove a folder that is not empty"""
 
 
-class NextCloudFileConflict(Exception):
-    """ Exception to raise when you try to create a File that alreay exists """
+class NextCloudFileConflict(NextCloudError):
+    """ When you try to create a File that alreay exists """
 
 
 class File(Item):
