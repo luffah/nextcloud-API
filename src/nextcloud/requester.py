@@ -77,7 +77,7 @@ class Requester(object):
 
     def rtn(self, resp, data=None):
         """ Build the response from requests response (see response_type) """
-        print(resp.content)
+        # print(resp.content)
         return self.response_type(
             response=resp, data=data,
             success_code=self.success_code

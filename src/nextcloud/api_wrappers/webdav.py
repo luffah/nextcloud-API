@@ -13,7 +13,7 @@ Not implemented yet:
 """
 # implementing dav search
 # -> add a function to build xml search
-#   see ../common/simplexml.py and ../common/collections.py
+#   see ../common/build_xml.py and ../api/model.py
 import re
 import os
 try:
