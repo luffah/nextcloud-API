@@ -36,7 +36,7 @@ class Group(ProvisioningApiWrapper):
         :return:
         """
         msg = {"groupid": gid}
-        return self.requester.post("", msg)
+        return self.requester.post(data=msg)
 
     def get_group(self, gid):
         """

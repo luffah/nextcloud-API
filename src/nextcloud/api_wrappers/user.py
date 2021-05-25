@@ -21,7 +21,7 @@ class User(base.ProvisioningApiWrapper):
         :returns:  resquester response
         """
         msg = {'userid': uid, 'password': passwd}
-        return self.requester.post("", msg)
+        return self.requester.post(data=msg)
 
     def get_users(self, search=None, limit=None, offset=None):
         """
@@ -82,7 +82,7 @@ class User(base.ProvisioningApiWrapper):
             "You have chosen to edit user's '{what}', but you can choose only from: {choices}"
             .format(what=what, choices=(keys()))
         )
-        return self.requester.put(uid, dict(key=what, value=value))
+        return self.requester.put(uid, data=dict(key=what, value=value))
 
     def disable_user(self, uid):
         """
@@ -121,7 +121,7 @@ class User(base.ProvisioningApiWrapper):
         """
         url = "{uid}/groups".format(uid=uid)
         msg = {'groupid': gid}
-        return self.requester.post(url, msg)
+        return self.requester.post(url, data=msg)
 
     def remove_from_group(self, uid, gid):
         """
@@ -133,7 +133,7 @@ class User(base.ProvisioningApiWrapper):
         """
         url = "{uid}/groups".format(uid=uid)
         msg = {'groupid': gid}
-        return self.requester.delete(url, msg)
+        return self.requester.delete(url, data=msg)
 
     def create_subadmin(self, uid, gid):
         """
@@ -145,7 +145,7 @@ class User(base.ProvisioningApiWrapper):
         """
         url = "{uid}/subadmins".format(uid=uid)
         msg = {'groupid': gid}
-        return self.requester.post(url, msg)
+        return self.requester.post(url, data=msg)
 
     def remove_subadmin(self, uid, gid):
         """
@@ -157,7 +157,7 @@ class User(base.ProvisioningApiWrapper):
         """
         url = "{uid}/subadmins".format(uid=uid)
         msg = {'groupid': gid}
-        return self.requester.delete(url, msg)
+        return self.requester.delete(url, data=msg)
 
     def get_subadmin_groups(self, uid):
         """

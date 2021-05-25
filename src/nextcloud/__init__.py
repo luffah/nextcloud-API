@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
+""" Nextcloud/OwnCloud client. See NextCloud object. """
+import logging
 from .session import Session
 from .api_wrappers import API_WRAPPER_CLASSES
 
+_LOGGER = logging.getLogger(__name__)
 
+# pylint: disable=useless-object-inheritance
 class NextCloud(object):
     """
     A NextCloud/OwnCloud client.
@@ -31,15 +35,22 @@ class NextCloud(object):
       ...     # some actions #
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self, endpoint=None,
-                 user=None, password=None, json_output=True, auth=None,
+                 user=None, password=None, auth=None,
                  session_kwargs=None,
-                 session=None):
+                 session=None, **kwargs):
+        if 'json_output' in kwargs:
+            _LOGGER.warning(
+                "'json_output' argument is deprecated :"
+                " response.data will be a dict-like object if the data is compatible."
+                " You can use response.json_data to be sure to get a dict."
+            )
+
         self.session = session or Session(
             url=endpoint, user=user, password=password, auth=auth,
             session_kwargs=session_kwargs
         )
-        self.json_output = json_output
         for functionality_class in API_WRAPPER_CLASSES:
             functionality_instance = functionality_class(self)
             for potential_method in dir(functionality_instance):
@@ -52,10 +63,12 @@ class NextCloud(object):
 
     @property
     def user(self):
+        " Session User "
         return self.session.user
 
     @property
     def url(self):
+        " Session Url "
         return self.session.url
 
     def __enter__(self):
@@ -66,25 +79,27 @@ class NextCloud(object):
         self.logout()
 
     def login(self, user=None, password=None, auth=None):
+        " Session login() "
         self.logout()
         return self.session.login(user=user, password=password, auth=auth,
                                   client=self)
 
-    def with_attr(self, **kwargs):
-        if 'auth' in kwargs or 'endpoint' in kwargs or 'endpoint' in kwargs:
-            return self.with_auth(**kwargs)
-        if 'session_kwargs' in kwargs:
-            return self.with_auth(auth=self.session.auth, **kwargs)
-        return self.__class__(session=self.session, **kwargs)
+    def logout(self):
+        " Session logout() "
+        self.session.logout()
 
-    def with_auth(self, auth=None, **kwargs):
-        init_kwargs = {'session_kwargs': self.session._session_kwargs,
-                       'json_output': self.json_output}
+    def _with_auth(self, auth=None, **kwargs):
+        #pylint: disable=protected-access
+        init_kwargs = {'session_kwargs': self.session._session_kwargs}
         init_kwargs.update(kwargs)
         if 'endpoint' in kwargs:
             return self.__class__(auth=auth, **init_kwargs)
         return self.__class__(endpoint=self.session.url, auth=auth, **init_kwargs)
 
-    def logout(self):
-        if self.session.session:
-            self.session.logout()
+    def with_attr(self, **kwargs):
+        """ Get a new client with some attribute change """
+        if 'auth' in kwargs or 'endpoint' in kwargs or 'user' in kwargs:
+            return self._with_auth(**kwargs)
+        if 'session_kwargs' in kwargs:
+            return self._with_auth(auth=self.session.auth, **kwargs)
+        return self.__class__(session=self.session, **kwargs)

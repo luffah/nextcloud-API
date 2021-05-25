@@ -44,13 +44,12 @@ def encode_string(string):
 
 def datetime_to_timestamp(_time):
     """
-    Returns int(<datetime>.timestamp())
+    :returns: int(<datetime>.timestamp())
     """
     if six.PY2:
         return int(
             time.mktime(_time.timetuple()) + _time.microsecond/1000000.0
         )
-    else:
-        return int(
-            _time.timestamp()
-        )
+    return int(
+        _time.timestamp()
+    )

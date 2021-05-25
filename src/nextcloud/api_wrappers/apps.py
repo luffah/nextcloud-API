@@ -16,7 +16,7 @@ class Apps(base.ProvisioningApiWrapper):
         Get a list of apps installed on the Nextcloud server
 
         :param filter: str, optional "enabled" or "disabled"
-        :return:
+        :return: OCSResponse
         """
         params = {
             "filter": filter
@@ -28,7 +28,7 @@ class Apps(base.ProvisioningApiWrapper):
         Provide information on a specific application
 
         :param app_id: str, app id
-        :return:
+        :return: OCSResponse
         """
         return self.requester.get(app_id)
 
@@ -37,7 +37,7 @@ class Apps(base.ProvisioningApiWrapper):
         Enable an app
 
         :param app_id: str, app id
-        :return:
+        :return: OCSResponse
         """
         return self.requester.post(app_id)
 
@@ -46,6 +46,6 @@ class Apps(base.ProvisioningApiWrapper):
         Disable the specified app
 
         :param app_id: str, app id
-        :return:
+        :return: OCSResponse
         """
         return self.requester.delete(app_id)
