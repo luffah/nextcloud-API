@@ -5,23 +5,12 @@ import time
 import requests
 from .compat import encode_requests_password
 from .codes import ExternalApiCodes
+from .exceptions import (
+    NextCloudError, NextCloudConnectionError, NextCloudLoginError
+)
 from .response import BaseResponse
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class NextCloudConnectionError(Exception):
-    """ A connection error occurred """
-
-    def __init__(self, msg='', url='', obj=None):
-        self.message = msg
-        self.url = url
-        self.obj = obj
-        Exception.__init__(self, msg, url, obj)
-
-class NextCloudLoginError(NextCloudConnectionError):
-    """ A login error occurred """
-
 
 
 # pylint: disable=useless-object-inheritance
@@ -66,7 +55,6 @@ class Session(object):
         :returns: requests.Response
         """
         try:
-            print(locals())
             if self.session:
                 ret = self.session.request(method=method, url=url, **kwargs)
             else:
@@ -81,7 +69,6 @@ class Session(object):
                 #         'Not authorized', url, method)
             return ret
         except requests.RequestException as request_error:
-            print(request_error)
             raise NextCloudConnectionError(
                 'Failed to establish connection to NextCloud',
                 getattr(request_error.request, 'url', None), request_error)
@@ -120,9 +107,9 @@ class Session(object):
         try:
             resp = client.get_user()
             if not resp.is_ok:
-                raise NextCloudConnectionError(
+                raise NextCloudLoginError(
                     'Failed to login to NextCloud', self.url, resp)
-        except NextCloudConnectionError as nxc_error:
+        except NextCloudError as nxc_error:
             if isinstance(nxc_error.obj, requests.exceptions.ConnectionError):
                 time.sleep(1)  # delay on max retry cases
                 _raise(nxc_error)
