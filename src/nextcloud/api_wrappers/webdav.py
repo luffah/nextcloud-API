@@ -12,7 +12,7 @@ Not implemented yet:
    - chunked file upload
 """
 # implementing dav search
-#-> add a function to build xml search
+# -> add a function to build xml search
 #   see ../common/simplexml.py and ../common/collections.py
 import re
 import os
@@ -23,10 +23,10 @@ except ImportError:
 
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from nextcloud.base import WebDAVApiWrapper
-from nextcloud.common.collections import PropertySet
-from nextcloud.common.properties import Property as Prop, NAMESPACES_MAP
-from nextcloud.common.value_parsing import (
+from ..base import WebDAVApiWrapper
+from ..api.model import Item
+from ..api.properties import NAMESPACES_MAP, DProp, OCProp, NCProp
+from ..common.value_parsing import (
     timestamp_to_epoch_time,
     datetime_to_timestamp
 )
@@ -35,11 +35,12 @@ from nextcloud.common.value_parsing import (
 class NextCloudDirectoryNotEmpty(Exception):
     """ Exception to raise when you try to remove a folder that is not empty"""
 
+
 class NextCloudFileConflict(Exception):
     """ Exception to raise when you try to create a File that alreay exists """
 
 
-class File(PropertySet):
+class File(Item):
     """
     Define properties on a WebDav file/folder
 
@@ -65,26 +66,25 @@ class File(PropertySet):
             return re.sub('{.*}', '', file_type[0].tag)
         return None
 
-    _attrs = [
-        Prop('d:getlastmodified'),
-        Prop('d:getetag'),
-        Prop('d:getcontenttype'),
-        Prop('d:resourcetype', parse_xml_value=(lambda p: File._extract_resource_type(p))),
-        Prop('d:getcontentlength'),
-        Prop('oc:id'),
-        Prop('oc:fileid'),
-        Prop('oc:favorite'),
-        Prop('oc:comments-href'),
-        Prop('oc:comments-count'),
-        Prop('oc:comments-unread'),
-        Prop('oc:owner-id'),
-        Prop('oc:owner-display-name'),
-        Prop('oc:share-types'),
-        Prop('oc:checksums'),
-        Prop('oc:size'),
-        Prop('oc:href'),
-        Prop('nc:has-preview')
-    ]
+    last_modified = DProp('getlastmodified')
+    etag = DProp('getetag')
+    content_type = DProp('getcontenttype')
+    resource_type = DProp('resourcetype',
+                          parse_xml_value='_extract_resource_type')
+    content_length = DProp('getcontentlength')
+    id = OCProp()
+    file_id = OCProp('fileid')
+    favorite = OCProp()
+    comments_href = OCProp()
+    comments_count = OCProp()
+    comments_unread = OCProp()
+    owner_id = OCProp()
+    owner_display_name = OCProp()
+    share_types = OCProp()
+    check_sums = OCProp('checksums')
+    size = OCProp()
+    href = OCProp()
+    has_preview = NCProp()
 
     def isfile(self):
         """ say if the file is a file /!\\ ressourcetype property shall be loaded """
@@ -92,7 +92,7 @@ class File(PropertySet):
 
     def isroot(self):
         """ say if the file is a directory /!\\ ressourcetype property shall be loaded """
-        return not self.get_relative_path().replace('/','')
+        return not self.get_relative_path().replace('/', '')
 
     def isdir(self):
         """ say if the file is a directory /!\\ ressourcetype property shall be loaded """
@@ -190,10 +190,9 @@ class File(PropertySet):
         :returns: True if success
         """
         resp = self._wrapper.upload_file_contents(file_contents,
-                                         self._get_remote_path(name),
-                                         timestamp=timestamp)
+                                                  self._get_remote_path(name),
+                                                  timestamp=timestamp)
         return resp.is_ok
-
 
     def download(self, name=None, target_dir=None):
         """
@@ -215,7 +214,6 @@ class File(PropertySet):
         if not self.isdir():
             return False
         return not self.list()
-
 
     def delete(self, subpath='', recursive=False):
         """
@@ -259,18 +257,16 @@ class WebDAV(WebDAVApiWrapper):
             fields (str list): file properties to fetch
 
         Returns:
-            list of dicts if json_output
-            list of File objects if not json_output
+            list of File objects
         """
         data = File.build_xml_propfind(
             use_default=all_properties,
             fields=fields
         ) if (fields or all_properties) else None
-        resp = self.requester.propfind(additional_url=self._get_path(path),
+        resp = self.requester.propfind(self._get_path(path),
                                        headers={'Depth': str(depth)},
                                        data=data)
-        return File.from_response(resp, json_output=self.json_output,
-                                  wrapper=self)
+        return File.from_response(resp, wrapper=self)
 
     def download_file(self, path, target_dir=None):
         """
@@ -361,7 +357,7 @@ class WebDAV(WebDAVApiWrapper):
         Returns:
             requester response
         """
-        return self.requester.make_collection(additional_url=(self._get_path(folder_path)))
+        return self.requester.make_collection(self._get_path(folder_path))
 
     def assure_folder_exists(self, folder_path):
         """
@@ -453,7 +449,7 @@ class WebDAV(WebDAVApiWrapper):
             check object property xml_name for property name
         """
         data = File.build_xml_propupdate(update_rules)
-        return self.requester.proppatch(additional_url=self._get_path(path), data=data)
+        return self.requester.proppatch(self._get_path(path), data=data)
 
     def fetch_files_with_filter(self, path='', filter_rules=''):
         """
@@ -472,10 +468,8 @@ class WebDAV(WebDAVApiWrapper):
         """
         data = File.build_xml_propfind(
             instr='oc:filter-files', filter_rules=filter_rules)
-        resp = self.requester.report(
-            additional_url=self._get_path(path), data=data)
-        return File.from_response(resp, json_output=self.json_output,
-                                  wrapper=self)
+        resp = self.requester.report(self._get_path(path), data=data)
+        return File.from_response(resp, wrapper=self)
 
     def set_favorites(self, path):
         """
@@ -516,7 +510,7 @@ class WebDAV(WebDAVApiWrapper):
             ns, field = field.split(':')
         get_file_prop_xpath = '{DAV:}propstat/d:prop/%s:%s' % (ns, field)
         data = File.build_xml_propfind(fields={ns: [field]})
-        resp = self.requester.propfind(additional_url=(self._get_path(path)), headers={'Depth': str(0)},
+        resp = self.requester.propfind(self._get_path(path), headers={'Depth': str(0)},
                                        data=data)
         response_data = resp.data
         resp.data = None
@@ -539,7 +533,7 @@ class WebDAV(WebDAVApiWrapper):
         :param path: path to the file
         :returns: File object or None
         """
-        resp = self.client.with_attr(json_output=False).list_folders(
+        resp = self.client.list_folders(
             path, all_properties=all_properties, depth=0)
         if resp.is_ok:
             if resp.data:

@@ -86,6 +86,7 @@ class TestUserGroups(BaseTestCase):
     def tearDown(self):
         self.delete_user(self.user_username)
         self.nxc.delete_group(self.group_name)
+        super(TestUserGroups, self).tearDown()
 
     def test_add_remove_user_from_group(self):
         # add to group

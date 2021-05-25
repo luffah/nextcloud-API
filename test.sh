@@ -51,43 +51,57 @@ _docker_compose(){ sudo docker-compose "$@"; }
 
 case $1 in 
   docker)
-    sh $0 docker:prepare
-    echo "== Running tests =="
-    sleep 3
+    # _do_end=t
+    if [ ! -f .test.ready ]; then
+      sh $0 docker:prepare
+      # _do_end=
+      sleep 3
+    fi
     sh $0 docker:run
-    echo "== Cleaning =="
-    sh $0 docker:end
+    # if [ "${_to_end}" ]; then
+    #   echo "== Cleaning =="
+    #   sh $0 docker:end
+    # fi
     ;;
   docker:prepare)
     (
+    echo "== Preparing tests =="
     cd tests 
     _docker_compose up --build -d
-    sleep 10; until _docker_compose exec --user www-data app /bin/bash -c "mkdir -p /var/www/html/custom_apps && cp -RT /tmp/groupfolders /var/www/html/custom_apps/groupfolders && php occ app:enable groupfolders"; do sleep 1; done
+    until _docker_compose exec --user www-data app /bin/bash -c "mkdir -p /var/www/html/custom_apps && cp -RT /tmp/groupfolders /var/www/html/custom_apps/groupfolders"; do sleep 1; done
+    # sleep 10
+    _docker_compose exec --user www-data app /bin/bash -c "php occ app:enable groupfolders"
     # pip3 install codecov
+    touch ../.test.ready
     )
     ;;
   docker:run)
     (
+    echo "== Running tests =="
     cd tests 
     # _docker_compose run --rm python-api python3 -m pytest --cov . --cov-report xml --cov-report term ..
+    find . -name '*.pyc' -delete
     _docker_compose run --rm python-api python3 -m pytest ..
     )
     ;;
   docker:end)
     (
+    echo "== Cleaning =="
     cd tests 
+    rm ../.test.ready 2> /dev/null
     # codecov
     _docker_compose down -v
     )
     ;;
   ""|custom)
+    [ -z "$NEXTCLOUD_HOSTNAME" -a -f ./.test.env ] && . ./.test.env
     _check_nextcloud
     NEXTCLOUD_HOSTNAME=$NEXTCLOUD_HOSTNAME \
       NEXTCLOUD_SSL_ENABLED=0 \
       NEXTCLOUD_ADMIN_PASSWORD=$NEXTCLOUD_ADMIN_PASSWORD \
       NEXTCLOUD_ADMIN_USER=$NEXTCLOUD_ADMIN_USER \
       NEXTCLOUD_VERSION=$NEXTCLOUD_VERSION \
-      pytest ..
+      pytest .
     ;;
   *)
     _usage

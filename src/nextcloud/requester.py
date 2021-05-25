@@ -2,9 +2,8 @@
 """
 Define requesters
 """
-from .response import WebDAVResponse, OCSResponse
+from . import response
 from .compat import encode_string
-from .session import catch_connection_error, NextCloudConnectionError
 
 
 # from six.moves.urllib import parse
@@ -15,79 +14,81 @@ def _prepare_url(string):
 #     return s
 
 
-
+# pylint: disable=useless-object-inheritance
 class Requester(object):
     """ Base requester """
 
+    headers = {}
+
     def __init__(self, wrapper):
         self.query_components = []
-        self.h_get = {"OCS-APIRequest": "true"}
-        self.h_post = {"OCS-APIRequest": "true",
-                       "Content-Type": "application/x-www-form-urlencoded"}
         self.wrapper = wrapper
-        self.API_URL = None
-        self.SUCCESS_CODE = None
+
+    @staticmethod
+    def _setup_headers(headers):
+        """ Add information in headers (default nothing) """
+
+    @classmethod
+    def get_headers(cls, key, headers=None):
+        """ Add information in headers (default nothing) """
+        h_dict = cls.headers.get(key, {})
+        if not h_dict:
+            if key[0] == 'p':  # put or post
+                h_dict['Content-Type'] = (
+                    'application/json' if '/json' in key else
+                    'application/x-www-form-urlencoded'
+                )
+            cls._setup_headers(h_dict)
+            cls.headers[key] = h_dict
+        if headers:
+            h_dict = h_dict.copy()
+            h_dict.update(headers)
+        return h_dict
 
     @property
-    def json_output(self):
-        return self.wrapper.json_output
+    def response_type(self):
+        """ Response type defaulted to BaseResponse"""
+        return response.BaseResponse
 
     @property
     def client(self):
+        """ The NextCloud client associated to the requester """
         return self.wrapper.client
 
     @property
     def session(self):
+        """ The NextCloud session associated to the requester """
         return self.wrapper.client.session
 
-    def rtn(self, resp):
-        if self.json_output:
-            return resp.json()
-        return resp.content.decode("UTF-8")
+    @property
+    def api_url(self):
+        """ The sub url associated to the requester """
+        return self.wrapper.API_URL
 
-    @catch_connection_error
-    def get(self, url="", params=None, headers=None):
-        url = self.get_full_url(url)
-        res = self.session.request('get', url, headers=(headers or self.h_get),
-                                   params=params)
-        return self.rtn(res)
+    @property
+    def json_able(self):
+        """ Define response type of the requests """
+        return self.wrapper.JSON_ABLE
 
-    @catch_connection_error
-    def post(self, url="", data=None, headers=None):
-        url = self.get_full_url(url)
-        res = self.session.request(
-            'post', url, data=data, headers=(headers or self.h_post))
-        return self.rtn(res)
+    @property
+    def success_code(self):
+        """ The success code (<int> or <dict method_name: int>)"""
+        return self.wrapper.SUCCESS_CODE
 
-    @catch_connection_error
-    def put_with_timestamp(self, url="", data=None, timestamp=None, headers=None):
-        h_post = headers or self.h_post
-        if isinstance(timestamp, (float, int)):
-            h_post['X-OC-MTIME'] = '%.0f' % timestamp
-        url = self.get_full_url(url)
-        res = self.session.request('put', url, data=data, headers=h_post)
-        return self.rtn(res)
-
-    @catch_connection_error
-    def put(self, url="", data=None, headers=None):
-        url = self.get_full_url(url)
-        res = self.session.request(
-            'put', url, data=data, headers=(headers or self.h_post))
-        return self.rtn(res)
-
-    @catch_connection_error
-    def delete(self, url="", data=None, headers=None):
-        url = self.get_full_url(url)
-        res = self.session.request(
-            'delete', url, data=data, headers=(headers or self.h_post))
-        return self.rtn(res)
+    def rtn(self, resp, data=None):
+        """ Build the response from requests response (see response_type) """
+        print(resp.content)
+        return self.response_type(
+            response=resp, data=data,
+            success_code=self.success_code
+        )
 
     def get_full_url(self, additional_url=""):
         """
         Build full url for request to NextCloud api
 
         Construct url from base_url, API_URL and additional_url (if given),
-        add format=json param if self.json
+        add format=json param if json_able
 
         :param additional_url: str
             add to url after api_url
@@ -100,81 +101,139 @@ class Requester(object):
             additional_url = _prepare_url(additional_url)
             if not additional_url.startswith("/"):
                 additional_url = "/{}".format(additional_url)
-        if self.json_output:
+        if self.json_able:
             self.query_components.append("format=json")
-        ret = "{base_url}{api_url}{additional_url}".format(base_url=(self.session.url),
-                                                           api_url=(
-                                                               self.API_URL),
+        ret = "{base_url}{api_url}{additional_url}".format(base_url=self.session.url,
+                                                           api_url=self.api_url,
                                                            additional_url=additional_url)
-        if self.json_output:
+        if self.json_able:
             ret += "?format=json"
 
         return ret
+
+    # pylint: disable=too-many-arguments
+
+    def request(self, method, url, headers=None, params=None,
+                data=None, raw_content=False):
+        """
+        Apply the request using 'requests' lib
+
+        :param method (str):   the method name / content type (e.g. 'post/json')
+        :param url (str):      the relative url
+        :param headers:        custom header
+        :param params:         requests parameters
+        :param data:           data to push with the request
+        :param raw_content:    use requests.Response content instead of default one
+
+        :returns: BaseResponse inherited (see response_type property)
+        """
+        headers = self.get_headers(method, headers)
+        if '/' in method:
+            method = method.split('/')[0]
+        url = self.get_full_url(url)
+        res = self.session.request(method, url, headers=headers,
+                                   params=params, data=data)
+        if raw_content:
+            return self.rtn(res, data=res.content)
+        return self.rtn(res)
+
+    def get(self, url="", **kwargs):
+        " get request "
+        return self.request('get', url, **kwargs)
+
+    def post(self, url="", data=None, **kwargs):
+        " post request "
+        return self.request('post', url, data=data, **kwargs)
+
+    def post_json(self, url="", data=None, **kwargs):
+        " post request posting json datas "
+        return self.request('post/json', url, data=data, **kwargs)
+
+    def put(self, url="", data=None, **kwargs):
+        " put request "
+        return self.request('put', url, data=data, **kwargs)
+
+    def put_with_timestamp(self, url="", data=None, timestamp=None, headers=None, **kwargs):
+        " put request with additional timestamp "
+        headers = headers or {}
+        if isinstance(timestamp, (float, int)):
+            headers['X-OC-MTIME'] = '%.0f' % timestamp
+        return self.request('put', url, data=data, headers=headers, **kwargs)
+
+    def delete(self, url="", **kwargs):
+        " delete request "
+        return self.request('delete', url, **kwargs)
 
 
 class OCSRequester(Requester):
     """ Requester for OCS API """
 
-    def rtn(self, resp):
-        return OCSResponse(response=resp,
-                           json_output=self.json_output, success_code=self.SUCCESS_CODE)
+    @staticmethod
+    def _setup_headers(headers):
+        """ Add OCS specific in header """
+        headers["OCS-APIRequest"] = "true"
+
+    # @classmethod
+    # def get_headers(cls, key, headers=None):
+    #     return super(OCSRequester, cls).get_headers(key + '/ocs', headers=headers)
+
+    @property
+    def response_type(self):
+        """ Response type is OCSResponse """
+        return response.OCSResponse
+
+class ProvisioningApiRequester(OCSRequester):
+    """ Requester for Provisionning API """
+
+    @property
+    def response_type(self):
+        """ Response type is OCSResponse """
+        return response.ProvisioningApiResponse
+
 
 
 class WebDAVRequester(Requester):
     """ Requester for WebDAV API """
 
-    def __init__(self, *args, **kwargs):
-        super(WebDAVRequester, self).__init__(*args, **kwargs)
+    # @classmethod
+    # def get_headers(cls, key, headers=None):
+    #     return super(WebDAVRequester, cls).get_headers(key + '/webdav', headers=headers)
 
-    def rtn(self, resp, data=None):
-        return WebDAVResponse(response=resp, data=data,
-                              success_code=self.SUCCESS_CODE)
+    @property
+    def response_type(self):
+        """ Response type is WEBDAVResponse """
+        return response.WebDAVResponse
 
-    @catch_connection_error
-    def propfind(self, additional_url="", headers=None, data=None):
-        url = self.get_full_url(additional_url=additional_url)
-        res = self.session.request('PROPFIND', url, headers=headers, data=data)
-        return self.rtn(res)
+    def propfind(self, url="", **kwargs):
+        " propfind request "
+        return self.request('propfind', url, **kwargs)
 
-    @catch_connection_error
-    def proppatch(self, additional_url="", data=None):
-        url = self.get_full_url(additional_url=additional_url)
-        res = self.session.request('PROPPATCH', url, data=data)
-        return self.rtn(resp=res)
+    def proppatch(self, url="", **kwargs):
+        " proppatch request "
+        return self.request('proppatch', url, **kwargs)
 
-    @catch_connection_error
-    def report(self, additional_url="", data=None):
-        url = self.get_full_url(additional_url=additional_url)
-        res = self.session.request('REPORT', url, data=data)
-        return self.rtn(resp=res)
+    def report(self, url="", **kwargs):
+        " report request "
+        return self.request('report', url, **kwargs)
 
-    @catch_connection_error
     def download(self, url="", params=None):
-        url = self.get_full_url(url)
-        res = self.session.request(
-            'get', url, headers=(self.h_get), params=params)
-        return self.rtn(resp=res, data=(res.content))
+        " download request "
+        return self.request('get', url, params=params, raw_content=True)
 
-    @catch_connection_error
-    def make_collection(self, additional_url=""):
-        url = self.get_full_url(additional_url=additional_url)
-        res = self.session.request("MKCOL", url=url)
-        return self.rtn(resp=res)
+    def make_collection(self, url=""):
+        " mkcol request (make dir) "
+        return self.request("mkcol", url)
 
-    @catch_connection_error
     def move(self, url, destination, overwrite=False):
-        url = self.get_full_url(additional_url=url)
-        destination_url = self.get_full_url(additional_url=destination)
+        " move request (move file) "
+        destination_url = self.get_full_url(destination)
         headers = {"Destination": destination_url.encode("utf-8"),
                    "Overwrite": "T" if overwrite else "F"}
-        res = self.session.request("MOVE", url=url, headers=headers)
-        return self.rtn(resp=res)
+        return self.request("move", url=url, headers=headers)
 
-    @catch_connection_error
     def copy(self, url, destination, overwrite=False):
-        url = self.get_full_url(additional_url=url)
-        destination_url = self.get_full_url(additional_url=destination)
+        " copy request (copy file) "
+        destination_url = self.get_full_url(destination)
         headers = {"Destination": destination_url.encode("utf-8"),
                    "Overwrite": "T" if overwrite else "F"}
-        res = self.session.request("COPY", url=url, headers=headers)
-        return self.rtn(resp=res)
+        return self.request("copy", url=url, headers=headers)

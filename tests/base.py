@@ -1,6 +1,7 @@
 import os
 import random
 import string
+import time
 from unittest import TestCase
 
 from nextcloud import NextCloud as _NextCloud
@@ -23,7 +24,8 @@ class NextCloud(_NextCloud):
     def __init__(self, endpoint=None, user=None, password=None,
                  session_kwargs=None, **kwargs):
         session_kwargs = session_kwargs.copy() if session_kwargs else {}
-        session_kwargs.update({'verify': NEXTCLOUD_SSL_ENABLED})
+        session_kwargs.update({'verify': NEXTCLOUD_SSL_ENABLED,
+                               'login_check': False})
         super(NextCloud, self).__init__(
             endpoint=endpoint, user=user, password=password,
             session_kwargs=session_kwargs, **kwargs
@@ -39,7 +41,11 @@ class BaseTestCase(TestCase):
 
     def setUp(self):
         self.username = NEXTCLOUD_USERNAME
-        self.nxc = NextCloud(NEXTCLOUD_URL, NEXTCLOUD_USERNAME, NEXTCLOUD_PASSWORD, json_output=True)
+        self.nxc = NextCloud(NEXTCLOUD_URL, NEXTCLOUD_USERNAME, NEXTCLOUD_PASSWORD)
+        self.nxc.login()
+
+    def tearDown(self):
+        self.nxc.logout()
 
     def create_new_user(self, username_prefix, password=None):
         """ Helper method to create new user """
@@ -97,9 +103,11 @@ class LocalNxcUserMixin(object):
         super(LocalNxcUserMixin, self).setUp()
         user_password = self.get_random_string(length=8)
         self.user_username = self.create_new_user('test_user_', password=user_password)
-        self.nxc_local = self.nxc_local = NextCloud(NEXTCLOUD_URL, self.user_username, user_password, json_output=True)
+        self.nxc_local = NextCloud(NEXTCLOUD_URL, self.user_username, user_password)
         # make user admin
+        self.nxc_local.login()
         self.nxc.add_to_group(self.user_username, 'admin')
 
     def tearDown(self):
+        self.nxc_local.logout()
         self.nxc.delete_user(self.user_username)

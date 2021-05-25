@@ -4,26 +4,24 @@ SystemTags API wrapper
 See https://doc.owncloud.com/server/developer_manual/webdav_api/tags.html
 """
 import json
-from nextcloud.base import WebDAVApiWrapper
-from nextcloud.common.collections import PropertySet
-from nextcloud.common.properties import Property as Prop
-from nextcloud.api_wrappers import webdav
+from ..base import WebDAVApiWrapper
+from ..api import Item
+from ..api.properties import OCProp
+from . import webdav
 
 
-class Tag(PropertySet):
+class Tag(Item):
     """ Define a Tag properties"""
-    _attrs = [
-        Prop('oc:id'),
-        Prop('oc:display-name', json='name', default='default_tag_name'),
-        Prop('oc:user-visible', json='userVisible', default=True),
-        Prop('oc:can-assign', json='canAssign', default=True),
-        Prop('oc:user-assignable', json='userAssignable', default=True)
-    ]
 
-    def __repr__(self):
-        add_info = (' %s' % repr(self.display_name)) if hasattr(
-            self, 'display_name') else ''
-        return super(Tag, self).__repr__(add_info=add_info)
+    id = OCProp()
+    display_name = OCProp(json='name', default='default_tag_name')
+    user_visible = OCProp(json='userVisible', default=True)
+    can_assign = OCProp(json='canAssign', default=True)
+    user_assignable = OCProp(json='userAssignable', default=True)
+
+    def __get_repr_info__(self):
+        return "{'href': %s, 'display_name': %s}" % (
+            repr(self.href), repr(self.display_name))
 
     def get_related_files(self, path=''):
         """
@@ -49,6 +47,7 @@ class Tag(PropertySet):
 
 
 class File(webdav.File):
+    """ Add method to file object """
 
     def _get_file_kwargs(self):
         kwargs = {}
@@ -91,21 +90,10 @@ class File(webdav.File):
 
 webdav.File = File
 
+
 class SystemTags(WebDAVApiWrapper):
     """ SystemTags API wrapper """
     API_URL = '/remote.php/dav/systemtags'
-
-    @classmethod
-    def _get_tags_from_response(cls, ret, one=False):
-        if ret.data:
-            ret = ret.data
-            if ret[0].href.endswith('/'):
-                ret = ret[1:]
-        else:
-            ret = []
-        if one:
-            return ret[0] if ret else None
-        return ret
 
     def get_systemtags(self):
         """
@@ -113,8 +101,8 @@ class SystemTags(WebDAVApiWrapper):
 
         :returns: list<Tag>
         """
-        return self._get_tags_from_response(
-            self.fetch_systemtags(json_output=False)
+        return self.get_objs_from_response(
+            self.fetch_systemtags()
         )
 
     def get_systemtag(self, name):
@@ -123,12 +111,12 @@ class SystemTags(WebDAVApiWrapper):
 
         :returns: Tag
         """
-        return self._get_tags_from_response(
-            self.fetch_systemtag(name, json_output=False),
+        return self.get_objs_from_response(
+            self.fetch_systemtag(name),
             one=True
         )
 
-    def fetch_systemtag(self, name, fields=None, json_output=None):
+    def fetch_systemtag(self, name, fields=None):
         """
         Get attributes of a nammed tag
 
@@ -136,20 +124,15 @@ class SystemTags(WebDAVApiWrapper):
         :param fields (<list>str): field names
         :returns: requester response with list<Tag> in data
         """
-        if not fields:
-            fields = Tag._fields
         resp = self.requester.propfind(
-            data=Tag.build_xml_propfind(fields={
-                'oc': ['display-name'] + fields
-            }))
-        if json_output is None:
-            json_output = self.json_output
+            data=Tag.build_xml_propfind(fields=(
+                {'oc': ['display-name'] + fields} if fields else None
+            ), use_default=True)
+        )
         return Tag.from_response(resp, wrapper=self,
-                                 json_output=json_output,
-                                 init_attrs=True,
                                  filtered=lambda t: t.display_name == name)
 
-    def fetch_systemtags(self, json_output=None):
+    def fetch_systemtags(self):
         """
         List of all tags
 
@@ -158,10 +141,7 @@ class SystemTags(WebDAVApiWrapper):
         resp = self.requester.propfind(
             data=Tag.build_xml_propfind(use_default=True)
         )
-        if json_output is None:
-            json_output = self.json_output
-        return Tag.from_response(resp, wrapper=self,
-                                 json_output=json_output)
+        return Tag.from_response(resp, wrapper=self)
 
     def create_systemtag(self, name, **kwargs):
         """
@@ -191,7 +171,7 @@ class SystemTags(WebDAVApiWrapper):
         :returns: requester response
         """
         if not tag_id:
-            resp = self.fetch_systemtag(name, ['id'], json_output=False)
+            resp = self.fetch_systemtag(name, ['id'])
             if resp.data:
                 tag_id = resp.data[0].id
             if not tag_id:  # lint only
@@ -213,7 +193,7 @@ class SystemTagsRelation(WebDAVApiWrapper):
         return _id
 
     def _get_systemtag_id_from_name(self, name):
-        resp = self.client.fetch_systemtag(name, ['id'], json_output=False)
+        resp = self.client.fetch_systemtag(name, ['id'])
         tag_id = None
         if resp.data:
             tag_id = int(resp.data[0].id)
@@ -240,12 +220,11 @@ class SystemTagsRelation(WebDAVApiWrapper):
 
         :returns: requester response with list<Tag> in data
         """
-        return SystemTags._get_tags_from_response(
-            self.fetch_systemtags_relation(file_id=file_id,
-                                           json_output=False, **kwargs)
+        return SystemTags.get_objs_from_response(
+            self.fetch_systemtags_relation(file_id=file_id, **kwargs)
         )
 
-    def fetch_systemtags_relation(self, file_id=None, json_output=None, **kwargs):
+    def fetch_systemtags_relation(self, file_id=None, **kwargs):
         """
         Get all tags from a given file/folder
 
@@ -254,15 +233,10 @@ class SystemTagsRelation(WebDAVApiWrapper):
 
         :returns: requester response with list<Tag> in data
         """
-        file_id, = self._arguments_get(['file_id'], dict(file_id=file_id,
-                                                         **kwargs))
+        file_id = self._default_get('file_id', dict(file_id=file_id, **kwargs))
         data = Tag.build_xml_propfind(use_default=True)
         resp = self.requester.propfind(additional_url=file_id, data=data)
-        return Tag.from_response(resp,
-                                 json_output=(
-                                     self.json_output if
-                                     json_output is None else json_output)
-                                 )
+        return Tag.from_response(resp)
 
     def remove_systemtags_relation(self, file_id=None, tag_id=None, **kwargs):
         """
@@ -275,8 +249,8 @@ class SystemTagsRelation(WebDAVApiWrapper):
 
         :returns: requester response
         """
-        file_id, tag_id = self._arguments_get([
-            'file_id', 'tag_id'], dict(file_id=file_id, tag_id=tag_id, **kwargs))
+        file_id = self._default_get('file_id', dict(file_id=file_id, **kwargs))
+        tag_id = self._default_get('tag_id', dict(tag_id=tag_id, **kwargs))
         if not file_id:
             raise ValueError('No file found')
         if not tag_id:
@@ -296,17 +270,17 @@ class SystemTagsRelation(WebDAVApiWrapper):
 
         :returns: requester response
         """
-        file_id, tag_id = self._arguments_get([
-            'file_id', 'tag_id'], locals())
+        file_id = self._default_get('file_id', dict(file_id=file_id, **kwargs))
+        tag_id = self._default_get('tag_id', dict(tag_id=tag_id, **kwargs))
         if not file_id:
             raise ValueError('No file found')
         if not tag_id:
             data = Tag.default_get(
                 display_name=kwargs.get('tag_name'), **kwargs)
-            resp = self.requester.post(
+            resp = self.requester.post_json(
                 url=file_id,
-                data=json.dumps(data),
-                headers={'Content-Type': 'application/json'})
+                data=json.dumps(data)
+            )
             # resp = self.client.create_systemtag(kwargs['tag_name'])
             # if not resp.is_ok:
             return resp

@@ -7,7 +7,8 @@ services:
       dockerfile: Dockerfile
       args:
         NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION}
-        GROUPFOLDERS_VERSION: ${GROUPFOLDERS_VERSION}
+        GROUPFOLDERS_URL: ${GROUPFOLDERS_URL}
+        GROUPFOLDERS_ARCHIVE_NAME: ${GROUPFOLDERS_ARCHIVE_NAME}
     networks:
       backend:
     ports:

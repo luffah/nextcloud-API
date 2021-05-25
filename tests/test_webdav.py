@@ -5,7 +5,7 @@ from datetime import datetime
 
 from .base import BaseTestCase, LocalNxcUserMixin
 from nextcloud.api_wrappers import WebDAV
-from nextcloud.api_wrappers.webdav import timestamp_to_epoch_time
+from nextcloud.api_wrappers.webdav import timestamp_to_epoch_time, File
 
 
 class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
@@ -28,11 +28,13 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
         res = self.nxc_local.list_folders()
         assert res.is_ok
         assert isinstance(res.data, list)
-        assert isinstance(res.data[0], dict)
+        assert isinstance(res.data[0], File)
+        assert isinstance(res.data[0].href, str)
         res = self.nxc_local.list_folders(all_properties=True)
         assert res.is_ok
         assert isinstance(res.data, list)
-        assert isinstance(res.data[0], dict)
+        assert isinstance(res.data[0], File)
+        assert isinstance(res.data[0].href, str)
 
     def test_upload_download_file(self):
         file_name = "test_file"
@@ -48,7 +50,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
         folder_info = self.nxc_local.list_folders(path=file_name)
         assert folder_info.is_ok
         assert len(folder_info.data) == 1
-        assert isinstance(folder_info.data[0], dict)
+        assert isinstance(folder_info.data[0], File)
         # check href
         assert folder_info.data[0]['href'] == file_nextcloud_href
 
@@ -86,7 +88,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
 
         assert folder_info.is_ok
         assert len(folder_info.data) == 1
-        assert isinstance(folder_info.data[0], dict)
+        assert isinstance(folder_info.data[0], File)
         # check href
         assert folder_info.data[0]['href'] == file_nextcloud_href
         # test timestamp of uploaded file in Nextcloud
@@ -140,7 +142,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
 
         assert folder_info.is_ok
         assert len(folder_info.data) == 1
-        assert isinstance(folder_info.data[0], dict)
+        assert isinstance(folder_info.data[0], File)
         # check href
         assert folder_info.data[0]['href'] == file_nextcloud_href
         # test timestamp of uploaded file in Nextcloud
@@ -164,7 +166,6 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
         self.nxc_local.delete_path(file_name)
         os.remove(file_local_path)
 
-
     def test_create_folder(self):
         folder_name = "test folder5"
         res = self.nxc_local.create_folder(folder_name)
@@ -176,7 +177,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
         folder_info = self.nxc_local.list_folders(path=folder_name)
         assert folder_info.is_ok
         assert len(folder_info.data) == 1
-        assert isinstance(folder_info.data[0], dict)
+        assert isinstance(folder_info.data[0], File)
         # check href
         assert folder_info.data[0]['href'] == file_nextcloud_href
         # check that created file type is a collection
@@ -206,7 +207,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
         assert res.raw.status_code == self.NO_CONTENT_CODE
         assert res.is_ok
         res = self.nxc_local.list_folders(new_path_name)
-        assert res.data is None
+        assert len(res.data) == 0
 
         # test delete file
         # create file at first
@@ -221,7 +222,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
         assert res.raw.status_code == self.NO_CONTENT_CODE
         assert res.is_ok
         res = self.nxc_local.list_folders(new_path_name)
-        assert res.data is None
+        assert len(res.data) == 0
 
         # test delete nonexistent file
         res = self.nxc_local.delete_path(file_name)
@@ -280,7 +281,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
         # check only new file exist
         original_file_props = self.nxc_local.list_folders(file_name)
         moved_file = self.nxc_local.list_folders(destination_path)
-        assert original_file_props.data is None
+        assert not original_file_props.data
         assert len(moved_file.data) == 1
 
         # copy file to already exist location

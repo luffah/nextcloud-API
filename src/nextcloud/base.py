@@ -3,8 +3,8 @@
 Define what is an api wrapper
 """
 import six
-from nextcloud.requester import Requester, OCSRequester, WebDAVRequester
-from nextcloud.codes import ProvisioningCode, OCSCode, WebDAVCode
+from .requester import Requester, OCSRequester, WebDAVRequester, ProvisioningApiRequester
+from .codes import ProvisioningCode, OCSCode, WebDAVCode
 
 API_WRAPPER_CLASSES = []
 
@@ -18,7 +18,7 @@ class MetaWrapper(type):
         return new_cls
 
 
-class BaseApiWrapper(object, six.with_metaclass(MetaWrapper)):
+class BaseApiWrapper(six.with_metaclass(MetaWrapper)):
     """
     Define an API wrapper
 
@@ -41,27 +41,43 @@ class BaseApiWrapper(object, six.with_metaclass(MetaWrapper)):
     API_URL = NotImplementedError
     VERIFIED = True
     JSON_ABLE = True
-    REQUESTER = Requester
 
-    def __init__(self, client=None):
+    def _set_requester(self):
+        self.requester = Requester(self)
+
+    def __init__(self, client=None, attrs=None):
         self.client = client
-        self.requester = self.REQUESTER(self)
+        self._attrs = attrs or {}
+        self._set_requester()
 
-        for attr_name in ['API_URL', 'SUCCESS_CODE', 'METHODS_SUCCESS_CODES']:
-            setattr(self.requester, attr_name, getattr(self, attr_name, None))
+    def _is_root_href(self, href):
+        return href == self.API_URL + '/'
 
-    @property
-    def json_output(self):
-        return self.JSON_ABLE and self.client.json_output
+    def get_objs_from_response(self, resp, one=False):
+        """
+        Get data or None given response
+        :param resp: requester response
+        :param one: requester response
+        :returns: PropertySet or None
+        """
+        if resp.data:
+            resp = resp.data
+            if self._is_root_href(resp[0].href):
+                resp = resp[1:]
+        else:
+            resp = []
+        if one:
+            return resp[0] if resp else None
+        return resp
 
-    def _arguments_get(self, varnames, vals):
+    def _default_get(self, varname, vals):
         """
         allows to automatically fetch values of varnames
         using generic values computing '_default_get_VARNAME'
 
         Example
         >>> def get_file_id(self, **kwargs):
-        >>>     file_id, = self._arguments_get(['file_id'], locals())
+        >>>     file_id = self._default_get('file_id', locals())
         >>>
         >>> def _default_get_file_id(self, vals):
         >>>     return self.get_file_id_from_name(vals.get('name', None))
@@ -74,42 +90,36 @@ class BaseApiWrapper(object, six.with_metaclass(MetaWrapper)):
         """
         if 'kwargs' in vals:
             vals.update(vals['kwargs'])
-        ret = []
-        for varname in varnames:
-            val = vals.get(varname, None)
-            if val is None:
-                getter_func_name = '_default_get_%s' % varname
-                if hasattr(self, getter_func_name):
-                    val = getattr(self, getter_func_name)(vals)
-            ret.append(val)
-
-        return ret
-
-
-
-
-class ProvisioningApiWrapper(BaseApiWrapper):
-    """ Define "Provisioning API" wrapper classes """
-    REQUESTER = OCSRequester
-    SUCCESS_CODE = ProvisioningCode.SUCCESS
+        val = vals.get(varname, None)
+        if val is None:
+            getter_func_name = '_default_get_%s' % varname
+            if hasattr(self, getter_func_name):
+                val = getattr(self, getter_func_name)(vals)
+        return val
 
 
 class OCSv1ApiWrapper(BaseApiWrapper):
     """ Define OCS wrapper classes """
-    REQUESTER = OCSRequester
     SUCCESS_CODE = OCSCode.SUCCESS_V1
 
+    def _set_requester(self):
+        self.requester = OCSRequester(self)
 
-class OCSv2ApiWrapper(BaseApiWrapper):
+
+class OCSv2ApiWrapper(OCSv1ApiWrapper):
     """ Define OCS wrapper classes """
-    REQUESTER = OCSRequester
     SUCCESS_CODE = OCSCode.SUCCESS_V2
 
 
+class ProvisioningApiWrapper(BaseApiWrapper):
+    """ Define "Provisioning API" wrapper classes """
+    SUCCESS_CODE = ProvisioningCode.SUCCESS
+
+    def _set_requester(self):
+        self.requester = ProvisioningApiRequester(self)
+
 class WebDAVApiWrapper(BaseApiWrapper):
     """ Define WebDav wrapper classes """
-    REQUESTER = WebDAVRequester
-
     SUCCESS_CODE = {
         'PROPFIND': [WebDAVCode.MULTISTATUS],
         'PROPPATCH': [WebDAVCode.MULTISTATUS],
@@ -121,3 +131,7 @@ class WebDAVApiWrapper(BaseApiWrapper):
         'POST': [WebDAVCode.CREATED],
         'DELETE': [WebDAVCode.NO_CONTENT]
     }
+    JSON_ABLE = False
+
+    def _set_requester(self):
+        self.requester = WebDAVRequester(self)

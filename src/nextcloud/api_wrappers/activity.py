@@ -30,7 +30,7 @@ class Activity(base.OCSv2ApiWrapper):
                 (Default: desc)
 
         Returns:
-            requester response
+            OCSResponse
         """
         params = dict(
             since=since,

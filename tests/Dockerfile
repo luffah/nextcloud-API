@@ -2,9 +2,10 @@ ARG NEXTCLOUD_VERSION
 
 FROM nextcloud:$NEXTCLOUD_VERSION-apache
 
-ARG GROUPFOLDERS_VERSION
-ADD https://github.com/nextcloud/groupfolders/releases/download/v${GROUPFOLDERS_VERSION}/groupfolders-$GROUPFOLDERS_VERSION.tar.gz /tmp/
+ARG GROUPFOLDERS_URL
+ADD ${GROUPFOLDERS_URL} /tmp/
 
+ARG GROUPFOLDERS_ARCHIVE_NAME
 RUN true \
-	&& tar xf /tmp/groupfolders-$GROUPFOLDERS_VERSION.tar.gz -C /tmp/ \
+	&& tar xf /tmp/$GROUPFOLDERS_ARCHIVE_NAME -C /tmp/ \
 	&& true

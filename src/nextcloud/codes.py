@@ -2,17 +2,17 @@
 """
 Define all known return code from OwnCloud/NextCloud API
 """
-import enum
 
 
-class ShareType(enum.IntEnum):
+class ShareType:
+    """ Share types (for files_sharing app)"""
     USER = 0
     GROUP = 1
     PUBLIC_LINK = 3
     FEDERATED_CLOUD_SHARE = 6
 
 
-class Permission(enum.IntEnum):
+class Permission:
     """ Permission for Share have to be sum of selected permissions """
     READ = 1
     UPDATE = 2
@@ -22,15 +22,18 @@ class Permission(enum.IntEnum):
     ALL = 31
 
 
-class ExternalApiCodes(enum.IntEnum):
+class ExternalApiCodes:
+    """ HTTP codes values for External API """
     SUCCESS = 100
+    UNAUTHORIZED = 401
     SERVER_ERROR = 996
     NOT_AUTHORIZED = 997
     NOT_FOUND = 998
     UNKNOWN_ERROR = 999
 
 
-class ProvisioningCode(enum.IntEnum):
+class ProvisioningCode:
+    """ HTTP codes values for Provisioning API """
     SUCCESS = 100
     INVALID_INPUT_DATA = 101
     FAILED = 102
@@ -39,7 +42,8 @@ class ProvisioningCode(enum.IntEnum):
     CHANGE_FAILED = 105
 
 
-class OCSCode(enum.IntEnum):
+class OCSCode:
+    """ HTTP codes values for OCS API """
     SUCCESS_V1 = 100
     SUCCESS_V2 = 200
     FAILURE = 400
@@ -47,8 +51,8 @@ class OCSCode(enum.IntEnum):
     SYNC_CONFLICT = 409
 
 
-class WebDAVCode(enum.IntEnum):
-    """ DAV constants """
+class WebDAVCode:
+    """ HTTP codes values for DAV API """
     CREATED = 201
     NO_CONTENT = 204
     MULTISTATUS = 207

@@ -7,9 +7,10 @@ See https://github.com/nextcloud/groupfolders
 from nextcloud import base
 
 
-class GroupFolders(base.ProvisioningApiWrapper):
+class GroupFolders(base.OCSv1ApiWrapper):
     """ GroupFolders API wrapper """
     API_URL = "/apps/groupfolders/folders"
+    JSON_ABLE = False
 
     def get_group_folders(self):
         """
@@ -77,7 +78,7 @@ class GroupFolders(base.ProvisioningApiWrapper):
         :returns:  resquester response
         """
         url = "/".join([str(fid), "groups", gid])
-        return self.requester.post(url=url, data={"permissions": permissions})
+        return self.requester.post(url, data={"permissions": permissions})
 
     def set_quota_of_group_folder(self, fid, quota):
         """
@@ -88,7 +89,7 @@ class GroupFolders(base.ProvisioningApiWrapper):
         :returns:  resquester response
         """
         url = "/".join([str(fid), "quota"])
-        return self.requester.post(url, {"quota": quota})
+        return self.requester.post(url, data={"quota": quota})
 
     def rename_group_folder(self, fid, mountpoint):
         """
@@ -99,4 +100,4 @@ class GroupFolders(base.ProvisioningApiWrapper):
         :returns:  resquester response
         """
         url = "/".join([str(fid), "mountpoint"])
-        return self.requester.post(url=url, data={"mountpoint": mountpoint})
+        return self.requester.post(url, data={"mountpoint": mountpoint})

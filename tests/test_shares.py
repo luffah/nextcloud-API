@@ -18,7 +18,7 @@ class TestShares(LocalNxcUserMixin, BaseTestCase):
         assert len(res.data) == 0
 
         # create public share
-        res = self.nxc_local.create_share('Documents', share_type=ShareType.PUBLIC_LINK.value)
+        res = self.nxc_local.create_share('Documents', share_type=ShareType.PUBLIC_LINK)
         assert res.is_ok
         share_id = res.data['id']
 
@@ -26,14 +26,14 @@ class TestShares(LocalNxcUserMixin, BaseTestCase):
         all_shares = self.nxc_local.get_shares().data
         assert len(all_shares) == 1
         assert all_shares[0]['id'] == share_id
-        assert all_shares[0]['share_type'] == ShareType.PUBLIC_LINK.value
+        assert all_shares[0]['share_type'] == ShareType.PUBLIC_LINK
 
         # get single share info
         created_share = self.nxc_local.get_share_info(share_id)
         assert res.is_ok
         created_share_data = created_share.data[0]
         assert created_share_data['id'] == share_id
-        assert created_share_data['share_type'] == ShareType.PUBLIC_LINK.value
+        assert created_share_data['share_type'] == ShareType.PUBLIC_LINK
         assert created_share_data['uid_owner'] == self.user_username
 
         # delete share
@@ -50,8 +50,8 @@ class TestShares(LocalNxcUserMixin, BaseTestCase):
         self.nxc.add_group(group_to_share_with)
 
         # create for user, group
-        for (share_type, share_with, permissions) in [(ShareType.USER.value, user_to_share_with, Permission.READ.value),
-                                                      (ShareType.GROUP.value, group_to_share_with, Permission.READ.value + Permission.CREATE.value)]:
+        for (share_type, share_with, permissions) in [(ShareType.USER, user_to_share_with, Permission.READ),
+                                                      (ShareType.GROUP, group_to_share_with, Permission.READ + Permission.CREATE)]:
             # create share with user
             res = self.nxc_local.create_share(share_path,
                                               share_type=share_type,
@@ -76,7 +76,7 @@ class TestShares(LocalNxcUserMixin, BaseTestCase):
     def test_create_with_password(self):
         share_path = "Documents"
         res = self.nxc_local.create_share(path=share_path,
-                                          share_type=ShareType.PUBLIC_LINK.value,
+                                          share_type=ShareType.PUBLIC_LINK,
                                           password=self.get_random_string(length=8))
         assert res.is_ok
         share_url = res.data['url']
@@ -96,13 +96,13 @@ class TestShares(LocalNxcUserMixin, BaseTestCase):
 
         # first path share
         first_share = self.nxc_local.create_share(path=share_path,
-                                                  share_type=ShareType.PUBLIC_LINK.value)
+                                                  share_type=ShareType.PUBLIC_LINK)
 
         # create second path share
         second_share = self.nxc_local.create_share(path=share_path,
-                                                   share_type=ShareType.GROUP.value,
+                                                   share_type=ShareType.GROUP,
                                                    share_with=group_to_share_with_name,
-                                                   permissions=Permission.READ.value)
+                                                   permissions=Permission.READ)
 
         all_shares_ids = [first_share.data['id'], second_share.data['id']]
 
@@ -120,17 +120,17 @@ class TestShares(LocalNxcUserMixin, BaseTestCase):
         user_to_share_with = self.create_new_user("test_shares_")
 
         share_with = user_to_share_with
-        share_type = ShareType.USER.value
+        share_type = ShareType.USER
         # create share with user
         res = self.nxc_local.create_share(share_path,
-                                          share_type=ShareType.USER.value,
+                                          share_type=ShareType.USER,
                                           share_with=user_to_share_with,
-                                          permissions=Permission.READ.value)
+                                          permissions=Permission.READ)
         assert res.is_ok
         share_id = res.data['id']
 
         # update share permissions
-        new_permissions = Permission.READ.value + Permission.CREATE.value
+        new_permissions = Permission.READ + Permission.CREATE
         res = self.nxc_local.update_share(share_id, permissions=new_permissions)
         assert res.is_ok
 
