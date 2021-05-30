@@ -1,9 +1,15 @@
+#pylint: disable=unnecessary-utf8-coding-comment
 # -*- coding: utf-8 -*-
 """
 Tools for python2/3 unicode compatibility
 """
-import six
 import time
+import six
+# pylint: disable=unused-import
+try:
+    from urllib2 import unquote as unquote
+except ImportError:
+    from urllib.parse import unquote as unquote
 
 
 def encode_requests_password(word):
@@ -27,6 +33,17 @@ def encode_requests_password(word):
         except UnicodeEncodeError:
             ret = bytes(word, 'utf-8')
     return ret
+
+
+def decode_string(string):
+    """Encodes a string containing utf-8.
+
+    :param string: str or unicode to encode
+    :returns     : unicode compatible string
+    """
+    if six.PY2:
+        return string.decode('utf-8')
+    return string
 
 
 def encode_string(string):

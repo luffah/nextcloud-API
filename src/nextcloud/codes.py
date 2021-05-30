@@ -2,6 +2,14 @@
 """
 Define all known return code from OwnCloud/NextCloud API
 """
+import six
+# from enum import IntEnum
+
+# IntEnum is not used (mainly) because of ShareType value 0,
+# false positive if you test val == ShareType.USER, if val = False
+# false negative if you test val is ShareType.GROUP, if val = 1
+# a working assertion require something too much verbose for few benefits:
+#   val is ShareType.GROUP.value
 
 
 class ShareType:
@@ -53,12 +61,12 @@ class OCSCode:
 
 class WebDAVCode:
     """ HTTP codes values for DAV API """
-    CREATED = 201
+    CREATED = 201  # file / folder creation succes
     NO_CONTENT = 204
     MULTISTATUS = 207
     NOT_AUTHENTICATED = 401
-    ALREADY_EXISTS = 405
-    CONFLICT = 409
+    ALREADY_EXISTS = 405  # folder already exists
+    CONFLICT = 409  # apply if parent folder doesn't exists
     PRECONDITION_FAILED = 412
 
 

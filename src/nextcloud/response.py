@@ -17,27 +17,31 @@ class BaseResponse(object):
     - raw         : the raw response
     - data        : (optionnal) the value of response data
 
-    The following attribute are guessed / recomputed
+    Attributes are guessed at init
     - data        : the associated data / dictionnary-like data or binary
-    - status_code : the HTTP code
-    - json_data   : the data in a json dict
-    - content_data: the data in raw.content as a unicode string
     - is_ok       : True if the request is succesfully achieved
+
+    This include the following properties
+    - status_code : the HTTP code
+    - raw_content_data: the data in raw.content (byte)
+    - content_data: the data in raw.content as a unicode string
+    - json_data   : the data in a json dict
     """
 
     def __init__(self, response, data=None, success_code=None):
         self.raw = response
         self.data = data
+        self.is_ok = None
 
         self._status_code = None
         self._json_data = None
         self._content_data = None
         self._raw_content_data = None
-        self._is_ok = None
 
         self.success_code = success_code
 
-        self._complete_data()
+        self._compute_data()
+        self._compute_is_ok()
 
     @property
     def json_data(self):
@@ -67,22 +71,19 @@ class BaseResponse(object):
             self._status_code = self.raw.status_code
         return int(self._status_code or -1)
 
-    @property
-    def is_ok(self):
-        """ Return true if status_code match success code """
-        if self._is_ok is None:
-            success_code = self.success_code
-            if isinstance(success_code, dict):
-                method = self.raw.request.method
-                success_codes = success_code.get(method, [])
-            else:
-                success_codes = (
-                    success_code if isinstance(success_code, list) else
-                    [success_code]
-                )
+    def _compute_is_ok(self):
+        """ Set is_ok true if status_code match success code """
+        success_code = self.success_code
+        if isinstance(success_code, dict):
+            method = self.raw.request.method
+            success_codes = success_code.get(method, [])
+        else:
+            success_codes = (
+                success_code if isinstance(success_code, list) else
+                [success_code]
+            )
 
-            self._is_ok = self.status_code in success_codes
-        return self._is_ok
+        self.is_ok = self.status_code in success_codes
 
     def get_json_data(self):
         """ Return JSON version of the response """
@@ -106,7 +107,11 @@ class BaseResponse(object):
         """ Return (binary) content of the response """
         return self.raw.content
 
-    def _complete_data(self):
+    def get_error_message(self):
+        """ Return the error message """
+        return self.json_data.get('message', False)
+
+    def _compute_data(self):
         if self.data is None:
             self.data = self.content_data
 
@@ -123,7 +128,7 @@ class OCSResponse(BaseResponse):
     - full_data : json data of the ocs response
     """
 
-    def _complete_data(self):
+    def _compute_data(self):
         meta = None
         data = None
 
@@ -148,9 +153,23 @@ class OCSResponse(BaseResponse):
         self.full_data = full_data
         self.meta = meta
 
+    def get_error_message(self):
+        """ Return the error message """
+        return self.meta.get('message', False)
+
+
 class ProvisioningApiResponse(OCSResponse):
     """ Response class for Provisioning api methods """
 
 
 class WebDAVResponse(BaseResponse):
     """ Response class for WebDAV api methods """
+
+    def get_error_message(self):
+        """ Return the error message """
+        # FIXME : TODO more adaptive get_json_data / parse_xml
+        msg = super(WebDAVResponse, self).get_error_message()
+        return msg or self.json_data.get(
+            '{DAV:}error', {}).get(
+                '{http://sabredav.org/ns}message'
+            )

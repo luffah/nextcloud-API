@@ -16,14 +16,10 @@ Not implemented yet:
 #   see ../common/build_xml.py and ../api/model.py
 import re
 import os
-try:
-    import pathlib
-except ImportError:
-    import pathlib2 as pathlib
-
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from ..base import WebDAVApiWrapper
+from ..codes import WebDAVCode
 from ..exceptions import NextCloudError
 from ..api.model import Item
 from ..api.properties import NAMESPACES_MAP, DProp, OCProp, NCProp
@@ -31,15 +27,30 @@ from ..common.value_parsing import (
     timestamp_to_epoch_time,
     datetime_to_timestamp
 )
+from ..common.paths import sequenced_paths_list
 
+
+class NextCloudUnexpectedMultiStatus(NextCloudError):
+    """ When you try to remove a folder that is not empty"""
 
 class NextCloudDirectoryNotEmpty(NextCloudError):
     """ When you try to remove a folder that is not empty"""
 
-
 class NextCloudFileConflict(NextCloudError):
-    """ When you try to create a File that alreay exists """
+    """ When you try to create a File that already exists """
 
+EXCEPTIONS = {
+    'default': {
+        WebDAVCode.CONFLICT: NextCloudFileConflict,
+        WebDAVCode.PRECONDITION_FAILED: NextCloudError,
+        WebDAVCode.ALREADY_EXISTS: NextCloudFileConflict,
+        WebDAVCode.NOT_AUTHENTICATED: NextCloudError,
+        WebDAVCode.NO_CONTENT: NextCloudError,
+    },
+    'MKCOL':{
+        WebDAVCode.MULTISTATUS: NextCloudUnexpectedMultiStatus,
+    }
+}
 
 class File(Item):
     """
@@ -70,11 +81,11 @@ class File(Item):
     last_modified = DProp('getlastmodified')
     etag = DProp('getetag')
     content_type = DProp('getcontenttype')
-    resource_type = DProp('resourcetype',
+    resource_type = DProp('resourcetype', required=True,
                           parse_xml_value='_extract_resource_type')
     content_length = DProp('getcontentlength')
     id = OCProp()
-    file_id = OCProp('fileid')
+    file_id = OCProp('fileid', required=True)
     favorite = OCProp()
     comments_href = OCProp()
     comments_count = OCProp()
@@ -240,6 +251,17 @@ class WebDAV(WebDAVApiWrapper):
     """ WebDav API wrapper """
     API_URL = "/remote.php/dav/files"
 
+    @staticmethod
+    def _raise_exception(resp, fpath):
+        """ raise the exception defined in EXCEPTIONS dict """
+        code = resp.status_code
+        exception_class = EXCEPTIONS.get(
+            resp.raw.request.method, {}
+        ).get(
+            code, EXCEPTIONS['default'].get(code, NextCloudError)
+        )
+        raise exception_class(resp.get_error_message(), fpath, resp)
+
     def _get_path(self, path):
         if path:
             return '/'.join([self.client.user, path]).replace('//', '/')
@@ -260,10 +282,12 @@ class WebDAV(WebDAVApiWrapper):
         Returns:
             list of File objects
         """
+        if not all_properties and not fields:
+            fields = ['file_id', 'resource_type']
         data = File.build_xml_propfind(
             use_default=all_properties,
             fields=fields
-        ) if (fields or all_properties) else None
+        )
         resp = self.requester.propfind(self._get_path(path),
                                        headers={'Depth': str(depth)},
                                        data=data)
@@ -348,19 +372,24 @@ class WebDAV(WebDAVApiWrapper):
         return self.requester.put_with_timestamp(
             self._get_path(remote_filepath), data=file_contents, timestamp=timestamp)
 
-    def create_folder(self, folder_path):
+    def create_folder(self, folder_path, already_exists=False):
         """
         Create folder on Nextcloud storage
 
         Args:
-            folder_path (str): folder path
+            folder_path (str):   folder path
+            already_exists(bool): if it is ok when the file/folder already exists
 
         Returns:
             requester response
         """
-        return self.requester.make_collection(self._get_path(folder_path))
+        ret = self.requester.make_collection(self._get_path(folder_path))
+        if already_exists and not ret.is_ok:
+            if ret.status_code == WebDAVCode.ALREADY_EXISTS:
+                ret.is_ok = True
+        return ret
 
-    def assure_folder_exists(self, folder_path):
+    def ensure_folder_exists(self, folder_path, raise_on_error=False):
         """
         Create folder on Nextcloud storage, don't do anything if the folder already exists.
         Args:
@@ -368,24 +397,34 @@ class WebDAV(WebDAVApiWrapper):
         Returns:
             requester response
         """
-        self.create_folder(folder_path)
-        return True
+        resp = self.create_folder(folder_path, already_exists=True)
+        ret = resp.is_ok
+        if raise_on_error and not ret:
+            self._raise_exception(resp, folder_path)
+        return ret
 
-    def assure_tree_exists(self, tree_path):
+    def ensure_tree_exists(self, folder_tree, raise_on_error=False):
         """
-        Make sure that the folder structure on Nextcloud storage exists
+        Make sure that the folder structure on Nextcloud storage exists.
+
+        Note: for optimization, build the full tree here if you know the tree
+
         Args:
-            folder_path (str): The folder tree
+            folder_tree: the folder tree (str or list or dict)
+                         e.g. str 'foo/bar/A'
+                         e.g. list ['foo/bar','foo/bar/A'],
+                         e.g. dict {'foo': {'bar':{'A': {}}}
         Returns:
             requester response
         """
-        tree = pathlib.PurePath(tree_path)
-        parents = list(tree.parents)
         ret = True
-        subfolders = parents[:-1][::-1] + [tree]
-        for subf in subfolders:
-            ret = self.assure_folder_exists(str(subf))
-
+        list_folders = sequenced_paths_list(folder_tree)
+        for subf in list_folders:
+            ret = self.ensure_folder_exists(
+                subf, raise_on_error=raise_on_error
+            )
+            if not ret:
+                break
         return ret
 
     def delete_path(self, path):
@@ -568,3 +607,8 @@ class WebDAV(WebDAVApiWrapper):
         """
         _app_root = '/'.join([self.API_URL, self.client.user])
         return href[len(_app_root):]
+
+# add method alt names for backward compat
+# Changed because "assure" is more sementically a test than a doing
+WebDAV.assure_folder_exists = WebDAV.ensure_folder_exists
+WebDAV.assure_tree_exists = WebDAV.ensure_tree_exists

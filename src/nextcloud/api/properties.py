@@ -44,7 +44,8 @@ class Property(six.with_metaclass(MetaProperty)):
                  default=None,
                  parse_xml_value=None,
                  parse_json_value=None,
-                 attr_name=None):
+                 attr_name=None,
+                 required=None):
         self.ns = None
         self.xml_key = xml_name
         self.attr_name = attr_name
@@ -52,6 +53,7 @@ class Property(six.with_metaclass(MetaProperty)):
         self.default_val = default
         self.parse_xml_value = parse_xml_value
         self.parse_json_value = parse_json_value
+        self.required = required
         if xml_name:
             if ':' in xml_name:
                 (self.ns, self.xml_key) = xml_name.split(':')

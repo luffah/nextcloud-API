@@ -1,3 +1,4 @@
+#pylint: disable=unnecessary-utf8-coding-comment
 # -*- coding: utf-8 -*-
 """
 Define requesters
