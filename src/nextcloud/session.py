@@ -6,7 +6,7 @@ import requests
 from .compat import encode_requests_password
 from .codes import ExternalApiCodes
 from .exceptions import (
-    NextCloudError, NextCloudConnectionError, NextCloudLoginError
+    NextCloudConnectionError, NextCloudLoginError
 )
 from .response import BaseResponse
 
@@ -25,7 +25,8 @@ class Session(object):
         self._set_credentials(user, password, auth)
         self.url = url.rstrip('/')
         session_kwargs = session_kwargs or {}
-        self._login_check = session_kwargs.pop('login_check', True)  # TODO False
+        self._login_check = session_kwargs.pop(
+            'login_check', True)  # TODO False
         self._session_kwargs = session_kwargs
 
     def _set_credentials(self, user, password, auth):
@@ -94,13 +95,43 @@ class Session(object):
         self._set_credentials(user, password, auth)
         self.session.auth = self.auth
         if client and self._login_check:
-            self._check_login(client, retry=3)
+            self._check_login(client, retry=[20, 60, 20, 60])
 
     def _check_login(self, client=None, retry=None):
-        def _raise(error):
-            if retry:
+        # :param retry: int (number of retries) or list of int (delays)
+        # There is max 6 attempts per minute before being blacklisted.
+        # Source:
+        #    https://help.nextcloud.com/t/master-password-retry-policy/110610
+        # Approximatelly:
+        #  if you wait 20 seconds, there is 1/3 chance of success
+        #  if you wait 1 minute, there is 100% chance of success
+        def _raise(retry, error):
+            is_retriable=(
+                isinstance(error.obj, requests.exceptions.ConnectionError)
+                or
+                isinstance(error.obj, requests.exceptions.SSLError)
+                or
+                isinstance(error.obj, requests.exceptions.MaxRetryError)
+                or (
+                    isinstance(nxc_error.obj, BaseResponse) and
+                    nxc_error.obj.status_code not in [
+                        ExternalApiCodes.NOT_AUTHORIZED,
+                        ExternalApiCodes.UNAUTHORIZED
+                    ])
+            )
+            if is_retriable and retry:
+                delay = 10
+                if isinstance(retry, list):
+                    delay, retry = (retry[0], retry[1:])
+                elif isinstance(retry, int):
+                    retry -= 1
+                else:
+                    retry = False
+                _LOGGER.warning('Retry session check (%s) in %s seconds',
+                                self.url, delay)
+                time.sleep(delay)
                 _LOGGER.warning('Retry session check (%s)', self.url)
-                return self._check_login(client, retry=retry - 1)
+                return self._check_login(client, retry=retry)
             self.logout()
             raise error
 
@@ -109,19 +140,10 @@ class Session(object):
             if not resp.is_ok:
                 raise NextCloudLoginError(
                     'Failed to login to NextCloud', self.url, resp)
-        except NextCloudError as nxc_error:
-            if isinstance(nxc_error.obj, requests.exceptions.ConnectionError):
-                time.sleep(1)  # delay on max retry cases
-                _raise(nxc_error)
-            elif isinstance(nxc_error.obj, requests.exceptions.SSLError):
-                _raise(nxc_error)
-            elif isinstance(nxc_error.obj, BaseResponse):
-                if nxc_error.obj.status_code not in [
-                        ExternalApiCodes.NOT_AUTHORIZED,
-                        ExternalApiCodes.UNAUTHORIZED
-                ]:
-                    _raise(nxc_error)
-            raise nxc_error
+        except NextCloudConnectionError as nxc_error:
+            _raise(retry, nxc_error)
+        except NextCloudLoginError as nxc_error:
+            _raise(retry, nxc_error)
         except Exception as any_error:
             self.logout()
             raise any_error
