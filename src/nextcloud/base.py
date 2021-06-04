@@ -128,6 +128,7 @@ class WebDAVApiWrapper(BaseApiWrapper):
         'COPY': [WebDAVCode.CREATED, WebDAVCode.NO_CONTENT],
         'MOVE': [WebDAVCode.CREATED, WebDAVCode.NO_CONTENT],
         'PUT': [WebDAVCode.CREATED],
+        'GET': [WebDAVCode.OK],
         'POST': [WebDAVCode.CREATED],
         'DELETE': [WebDAVCode.NO_CONTENT]
     }

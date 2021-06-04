@@ -61,6 +61,7 @@ class OCSCode:
 
 class WebDAVCode:
     """ HTTP codes values for DAV API """
+    OK = 200
     CREATED = 201  # file / folder creation succes
     NO_CONTENT = 204
     MULTISTATUS = 207

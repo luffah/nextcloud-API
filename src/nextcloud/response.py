@@ -15,7 +15,7 @@ class BaseResponse(object):
     """
     Base Response that take HTTP reponse and take the following attrs
     - raw         : the raw response
-    - data        : (optionnal) the value of response data
+    - raw_content : if the value of response data shall be raw
 
     Attributes are guessed at init
     - data        : the associated data / dictionnary-like data or binary
@@ -28,9 +28,10 @@ class BaseResponse(object):
     - json_data   : the data in a json dict
     """
 
-    def __init__(self, response, data=None, success_code=None):
+    def __init__(self, response, raw_content=None, success_code=None):
         self.raw = response
-        self.data = data
+        self.raw_content = raw_content
+        self.data = None
         self.is_ok = None
 
         self._status_code = None
@@ -52,9 +53,12 @@ class BaseResponse(object):
 
     @property
     def content_data(self):
-        """ Return (unicode string) content of the response """
+        """ Return (unicode string if not raw_content) content of the response """
         if not self._content_data:
-            self._content_data = self.get_content_data()
+            self._content_data = (
+                self.get_raw_content_data() if
+                self.raw_content else self.get_content_data()
+        )
         return self._content_data
 
     @property

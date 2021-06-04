@@ -34,6 +34,10 @@ class Property(six.with_metaclass(MetaProperty)):
     :param default:         default value (value or function without args)
     :param parse_xml_value: a function that take xml.etree.ElementTree and
                             return value of the property
+    :param parse_json_value:a function that take a dict and
+                            return value of the property
+    :param required (bool): True if the field shall be included by default
+    :param disabled (bool): True if the field shall not be used in requests
     """
     namespace = (None, None)
 
@@ -42,18 +46,22 @@ class Property(six.with_metaclass(MetaProperty)):
                  xml_name=None,
                  json=None,
                  default=None,
+                 parse_value=None,
                  parse_xml_value=None,
                  parse_json_value=None,
                  attr_name=None,
-                 required=None):
+                 required=None,
+                 disabled=None):
         self.ns = None
         self.xml_key = xml_name
         self.attr_name = attr_name
         self.json_key = json
         self.default_val = default
+        self.parse_value = parse_value
         self.parse_xml_value = parse_xml_value
         self.parse_json_value = parse_json_value
         self.required = required
+        self.disabled = disabled
         if xml_name:
             if ':' in xml_name:
                 (self.ns, self.xml_key) = xml_name.split(':')
@@ -92,17 +100,19 @@ class Property(six.with_metaclass(MetaProperty)):
         :param data: json dict or xml.etree.ElementTree.Element node
         :returns:    python value
         """
-        if data is None:
-            return None
+        ret = data
         if isinstance(data, dict):
             if self.parse_json_value:
-                return self.parse_json_value(data)
-            return data
-        if isinstance(data, xml.etree.ElementTree.Element):
+                ret = self.parse_json_value(data)
+        elif isinstance(data, xml.etree.ElementTree.Element):
             if self.parse_xml_value:
-                return self.parse_xml_value(data)
-            return data.text
-        return data
+                ret = self.parse_xml_value(data)
+            else:
+                ret = data.text
+        if ret:
+            if self.parse_value:
+                ret = self.parse_value(ret)
+        return ret
 
 
 class DProp(Property):

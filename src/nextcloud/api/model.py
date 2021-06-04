@@ -61,6 +61,7 @@ class Item(six.with_metaclass(MetaModel)):
     SUCCESS_STATUS = 'HTTP/1.1 200 OK'
     COLLECTION_RESOURCE_TYPE = 'collection'
     _attrs = []
+    _repr_attrs = ['href']
 
     @classmethod
     def _fetch_properties(cls, key, key_name='xml_key'):
@@ -69,9 +70,19 @@ class Item(six.with_metaclass(MetaModel)):
                 yield k
 
     def __get_repr_info__(self):
-        if getattr(self, 'href', False):
-            return "{'href': %s}" % encode_string(self.href)
-        return ''
+        values = {}
+        for k in self._repr_attrs:
+            val = getattr(self, k, None)
+            if val is None:
+                continue
+            if isinstance(val, six.text_type):
+                values[k] = repr(encode_string(val))
+            else:
+                values[k] = repr(val)
+
+        return "{%s}" % ', '.join(
+            ["'%s' : %s" % (k, v) for k, v in values.items()]
+        )
 
     def __init__(self, data=None, json_data=None, xml_data=None, wrapper=None):
         self._wrapper = wrapper or getattr(self, '_wrapper', False)
@@ -162,19 +173,25 @@ class Item(six.with_metaclass(MetaModel)):
         :param fields: a dict { namespace: [key…] } or a list of attr name
         :param use_default:   True to use all values specified in Model
         """
-        if not fields:
-            if use_default:
-                fields = {k: [] for k in NAMESPACES_MAP}
-                for attr in cls._attrs:
-                    fields[attr.ns].append(attr.xml_key)
-            else:
-                fields = [k.attr_name for k in cls._attrs if attr.required]
-        if isinstance(fields, list):  # a list of python attributes
+        def _build_fields_dict(only_required=False, attr_name_list=None):
             _fields = {k: [] for k in NAMESPACES_MAP}
             for attr in cls._attrs:
-                if attr.attr_name in fields:
-                    _fields[attr.ns].append(attr.xml_key)
-            fields = _fields
+                if only_required:
+                    if not attr.required:
+                        continue
+                if attr_name_list is not None:
+                    if attr.attr_name not in attr_name_list:
+                        continue
+                if attr.disabled:
+                    # warning message if in attr_name_list ?
+                    continue
+                _fields[attr.ns].append(attr.xml_key)
+            return _fields
+
+        if not fields:
+            fields = _build_fields_dict(only_required=(not use_default))
+        elif isinstance(fields, list):
+            fields = _build_fields_dict(attr_name_list=fields)
         if not fields or filter_rules:
             return None
         return BuildXML.build_propfind_datas(instr=instr, filter_rules=filter_rules,

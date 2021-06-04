@@ -59,7 +59,7 @@ def encode_string(string):
     return string
 
 
-def datetime_to_timestamp(_time):
+def timestamp_from_datetime(_time):
     """
     :returns: int(<datetime>.timestamp())
     """

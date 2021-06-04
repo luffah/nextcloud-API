@@ -76,11 +76,11 @@ class Requester(object):
         """ The success code (<int> or <dict method_name: int>)"""
         return self.wrapper.SUCCESS_CODE
 
-    def rtn(self, resp, data=None):
+    def rtn(self, resp, raw_content=None):
         """ Build the response from requests response (see response_type) """
         # print(resp.content)
         return self.response_type(
-            response=resp, data=data,
+            response=resp, raw_content=raw_content,
             success_code=self.success_code
         )
 
@@ -134,9 +134,7 @@ class Requester(object):
         url = self.get_full_url(url)
         res = self.session.request(method, url, headers=headers,
                                    params=params, data=data)
-        if raw_content:
-            return self.rtn(res, data=res.content)
-        return self.rtn(res)
+        return self.rtn(res, raw_content=raw_content)
 
     def get(self, url="", **kwargs):
         " get request "

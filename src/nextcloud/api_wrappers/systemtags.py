@@ -12,16 +12,13 @@ from . import webdav
 
 class Tag(Item):
     """ Define a Tag properties"""
+    _repr_attrs = ['href', 'display_name']
 
     id = OCProp()
     display_name = OCProp(json='name', default='default_tag_name')
     user_visible = OCProp(json='userVisible', default=True)
     can_assign = OCProp(json='canAssign', default=True)
     user_assignable = OCProp(json='userAssignable', default=True)
-
-    def __get_repr_info__(self):
-        return "{'href': %s, 'display_name': %s}" % (
-            repr(self.href), repr(self.display_name))
 
     def get_related_files(self, path=''):
         """

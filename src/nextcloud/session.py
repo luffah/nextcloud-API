@@ -13,6 +13,11 @@ from .response import BaseResponse
 _LOGGER = logging.getLogger(__name__)
 
 
+class CustomRetry(requests.packages.urllib3.util.retry.Retry):
+
+    def get_backoff_time(self):
+        return 20.0
+
 # pylint: disable=useless-object-inheritance
 class Session(object):
     """ Session for requesting """
@@ -25,8 +30,7 @@ class Session(object):
         self._set_credentials(user, password, auth)
         self.url = url.rstrip('/')
         session_kwargs = session_kwargs or {}
-        self._login_check = session_kwargs.pop(
-            'login_check', True)  # TODO False
+        self._login_check = session_kwargs.pop('on_session_login', False)
         self._session_kwargs = session_kwargs
 
     def _set_credentials(self, user, password, auth):
@@ -83,21 +87,30 @@ class Session(object):
         :param client: object for any auth method
         :raises: HTTPResponseError in case an HTTP error status was returned
         """
-        # a = requests.adapters.HTTPAdapter(max_retries=3)
-
+        # To avoid deadlocks on "Resetting dropped connection"
+        adapter = requests.adapters.HTTPAdapter()
+        # adapter.max_retries = CustomRetry(status_forcelist=[ 502, 503, 504 ])
+        adapter.max_retries = requests.packages.urllib3.util.retry.Retry(
+            status_forcelist=[ 502, 503, 504 ]
+        )
+        #
         self.session = requests.Session()
-
-        # self.session.mount('https://', a)
-
+        #
+        self.session.mount('https://', adapter)
+        #
         for k in self._session_kwargs:
             setattr(self.session, k, self._session_kwargs[k])
 
         self._set_credentials(user, password, auth)
         self.session.auth = self.auth
-        if client and self._login_check:
-            self._check_login(client, retry=[20, 60, 20, 60])
+        if client:
+            login_check_func = self._login_check
+            if isinstance(login_check_func, str):
+                login_check_func = getattr(client, login_check_func)
+            if self._login_check:
+                self._check_login(login_check_func, retry=[20, 60, 20, 60])
 
-    def _check_login(self, client=None, retry=None):
+    def _check_login(self, check_func, retry=None):
         # :param retry: int (number of retries) or list of int (delays)
         # There is max 6 attempts per minute before being blacklisted.
         # Source:
@@ -136,8 +149,7 @@ class Session(object):
             raise error
 
         try:
-            resp = client.get_user()
-            if not resp.is_ok:
+            if not check_func().is_ok:
                 raise NextCloudLoginError(
                     'Failed to login to NextCloud', self.url, resp)
         except NextCloudConnectionError as nxc_error:

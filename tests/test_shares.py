@@ -3,7 +3,7 @@ import requests
 from datetime import datetime, timedelta
 
 from nextcloud.codes import ShareType, Permission
-from nextcloud.common.value_parsing import datetime_to_expire_date
+from nextcloud.common.timestamping import datetime_to_expire_date
 
 from .base import BaseTestCase, LocalNxcUserMixin
 
