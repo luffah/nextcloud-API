@@ -28,7 +28,7 @@ from ..common.timestamping import (
     datetime_from_string,
     timestamp_from_datetime
 )
-from ..common.paths import sequenced_paths_list
+from ..common.paths import sequenced_paths_list, split_path
 
 
 class NextCloudUnexpectedMultiStatus(NextCloudError):
@@ -454,6 +454,15 @@ class WebDAV(WebDAVApiWrapper):
         Returns:
             requester response
         """
+        if isinstance(folder_tree, str):
+            if folder_tree.count('/') > 3:
+                dir_path, _ = split_path(folder_tree)
+                resp = self.requester.propfind(self._get_path(dir_path),
+                                               headers={'Depth': 0})
+                if resp.ok:
+                    return self.ensure_folder_exists(
+                        folder_tree, raise_on_error=raise_on_error
+                    )
         ret = True
         list_folders = sequenced_paths_list(folder_tree)
         for subf in list_folders:

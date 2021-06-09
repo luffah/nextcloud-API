@@ -14,8 +14,9 @@ class Tag(Item):
     """ Define a Tag properties"""
     _repr_attrs = ['href', 'display_name']
 
-    id = OCProp()
-    display_name = OCProp(json='name', default='default_tag_name')
+    id = OCProp(parse_value=int, required=True)
+    display_name = OCProp(json='name', default='default_tag_name',
+                          required=True)
     user_visible = OCProp(json='userVisible', default=True)
     can_assign = OCProp(json='canAssign', default=True)
     user_assignable = OCProp(json='userAssignable', default=True)
@@ -25,10 +26,9 @@ class Tag(Item):
         Get files related to current tag
         :param path: (optionnal) a path to search in
         """
-        _id = int(self.id)
         ret = self._wrapper.client.fetch_files_with_filter(
             path=path,
-            filter_rules={'oc': {'systemtag': _id}}
+            filter_rules={'oc': {'systemtag': self.id}}
         )
         return ret.data or []
 
@@ -38,8 +38,7 @@ class Tag(Item):
 
         :returns: True if success
         """
-        _id = int(self.id)
-        ret = self._wrapper.delete_systemtag(tag_id=_id)
+        ret = self._wrapper.delete_systemtag(tag_id=self.id)
         return ret.is_ok
 
 
@@ -102,12 +101,23 @@ class SystemTags(WebDAVApiWrapper):
             self.fetch_systemtags()
         )
 
-    def get_systemtag(self, name):
+    def get_systemtag(self, name, create=False, **kwargs):
         """
         Return a nammed tag
 
+        :param name(str): tag name
+        :param create(bool): create the tag before getting it (default False)
         :returns: Tag
         """
+        if create:
+            resp = self.create_systemtag(name, **kwargs)
+            if resp.is_ok:
+                vals = {
+                    'id':resp.data, 'display_name': name
+                }
+                vals.update(kwargs)
+                return Tag(vals)
+            return None
         return self.get_objs_from_response(
             self.fetch_systemtag(name),
             one=True
@@ -218,7 +228,8 @@ class SystemTagsRelation(WebDAVApiWrapper):
         :returns: requester response with list<Tag> in data
         """
         return SystemTags.get_objs_from_response(
-            self.fetch_systemtags_relation(file_id=file_id, **kwargs)
+            self.fetch_systemtags_relation(file_id=file_id, **kwargs),
+            skip_url=self.API_URL + '/' + str(file_id) + '/'
         )
 
     def fetch_systemtags_relation(self, file_id=None, **kwargs):
@@ -232,8 +243,8 @@ class SystemTagsRelation(WebDAVApiWrapper):
         """
         file_id = self._default_get('file_id', dict(file_id=file_id, **kwargs))
         data = Tag.build_xml_propfind(use_default=True)
-        resp = self.requester.propfind(additional_url=file_id, data=data)
-        return Tag.from_response(resp)
+        resp = self.requester.propfind(url=file_id, data=data)
+        return Tag.from_response(resp, wrapper=self)
 
     def remove_systemtags_relation(self, file_id=None, tag_id=None, **kwargs):
         """

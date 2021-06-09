@@ -5,6 +5,14 @@ except ImportError:
 
 from collections import OrderedDict
 
+def split_path(fpath):
+    '''
+    Return (filename, dirname) from a path
+    '''
+    f_path = fpath.split('/')
+    f_name, dir_name = (f_path.pop(), '/'.join(f_path))
+    return (dir_name, f_name)
+
 def sequenced_paths_list(folder_paths):
     '''
     Return the list of paths to minimize the number of operations while not missing a thing
