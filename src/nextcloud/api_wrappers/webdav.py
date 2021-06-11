@@ -95,7 +95,7 @@ class File(Item):
     resource_type = DProp('resourcetype', required=True,
                           parse_xml_value='_extract_resource_type')
     content_length = DProp('getcontentlength')
-    id = OCProp(required=True)
+    id = OCProp()  # id doesn't reveal file changes : fileid is good enough
     file_id = OCProp('fileid', required=True, parse_value=int)
     favorite = OCProp()
     comments_href = OCProp()
@@ -440,7 +440,9 @@ class WebDAV(WebDAVApiWrapper):
             self._raise_exception(resp, folder_path)
         return ret
 
-    def ensure_tree_exists(self, folder_tree, raise_on_error=False):
+    def ensure_tree_exists(self, folder_tree,
+                           raise_on_error=False,
+                           exclude=None):
         """
         Make sure that the folder structure on Nextcloud storage exists.
 
@@ -451,20 +453,12 @@ class WebDAV(WebDAVApiWrapper):
                          e.g. str 'foo/bar/A'
                          e.g. list ['foo/bar','foo/bar/A'],
                          e.g. dict {'foo': {'bar':{'A': {}}}
+            exclude:     a list of path to not create (assuming it exists)
         Returns:
             requester response
         """
-        if isinstance(folder_tree, str):
-            if folder_tree.count('/') > 3:
-                dir_path, _ = split_path(folder_tree)
-                resp = self.requester.propfind(self._get_path(dir_path),
-                                               headers={'Depth': 0})
-                if resp.ok:
-                    return self.ensure_folder_exists(
-                        folder_tree, raise_on_error=raise_on_error
-                    )
         ret = True
-        list_folders = sequenced_paths_list(folder_tree)
+        list_folders = sequenced_paths_list(folder_tree, exclude=exclude)
         for subf in list_folders:
             ret = self.ensure_folder_exists(
                 subf, raise_on_error=raise_on_error

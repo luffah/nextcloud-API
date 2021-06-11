@@ -13,13 +13,14 @@ def split_path(fpath):
     f_name, dir_name = (f_path.pop(), '/'.join(f_path))
     return (dir_name, f_name)
 
-def sequenced_paths_list(folder_paths):
+def sequenced_paths_list(folder_paths, exclude=None):
     '''
     Return the list of paths to minimize the number of operations while not missing a thing
     :param folder_path:  the folder tree (str or list or dict)
                          e.g. str 'foo/bar/A'
                          e.g. list ['foo/bar','foo/bar/A'],
                          e.g. dict {'foo': {'bar':{'A': {}}}
+    :param exclude:      a list of path to remove from the result
     :returns: ordered list of all paths to build
     '''
     list_paths = []
@@ -31,7 +32,10 @@ def sequenced_paths_list(folder_paths):
         list_paths = nodes_from_tree(build_tree(folder_paths))
     elif isinstance(folder_paths, dict):
         list_paths = nodes_from_tree(folder_paths)
-    return list_paths
+    return _remove_excluded(list_paths, exclude_list) if exclude else list_paths
+
+def _remove_excluded(list_path, exclude_list):
+    return [p for p in list_paths if p not in exclude_list]
 
 def build_tree(paths):
     ''' Build a tree from a list of file '''
