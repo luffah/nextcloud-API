@@ -1,0 +1,13 @@
+ARG NEXTCLOUD_VERSION
+
+FROM nextcloud:$NEXTCLOUD_VERSION-apache
+
+COPY ${GROUPFOLDERS_ARCHIVE_NAME} /tmp/
+
+ARG GROUPFOLDERS_ARCHIVE_NAME
+RUN true \
+	&& tar xf /tmp/$GROUPFOLDERS_ARCHIVE_NAME -C /tmp/ \
+  && mkdir -p /var/www/html/custom_apps \
+  && cp -RT /tmp/groupfolders /var/www/html/custom_apps/groupfolders \
+  && chown www-data:www-data /var/www/html/custom_apps -R \
+	&& true

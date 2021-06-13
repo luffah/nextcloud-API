@@ -7,8 +7,10 @@ import six
 from ..common import build_xml as BuildXML, parse_xml as ParseXML
 from .properties import NAMESPACES_MAP, Property
 from .item_set import ItemSet
+from ..compat import unquote, decode_string, encode_string
 
 ALL_PROPERTIES = {}
+RESERVED_KEYS = []
 
 class MetaModel(type):
     """ Meta Property Set : find properties in class """
@@ -26,7 +28,13 @@ class MetaModel(type):
         if name not in ALL_PROPERTIES:
             ALL_PROPERTIES[name] = []
         for key, val in attrs.items():
-            if isinstance(val, Property):
+            if name == 'Item' and callable(val):
+                RESERVED_KEYS.append(key)
+            elif isinstance(val, Property):
+                if key in RESERVED_KEYS:
+                    raise ValueError(
+                        "%s can't be a Property and a method for Item at same time."
+                        " See nextcloud.api.model.RESERVED_KEYS." % key)
                 val.update_attr_name(key)
 
                 xml_compute_func = val.parse_xml_value
@@ -53,6 +61,7 @@ class Item(six.with_metaclass(MetaModel)):
     SUCCESS_STATUS = 'HTTP/1.1 200 OK'
     COLLECTION_RESOURCE_TYPE = 'collection'
     _attrs = []
+    _repr_attrs = ['href']
 
     @classmethod
     def _fetch_properties(cls, key, key_name='xml_key'):
@@ -61,9 +70,19 @@ class Item(six.with_metaclass(MetaModel)):
                 yield k
 
     def __get_repr_info__(self):
-        if getattr(self, 'href', False):
-            return "{'href': %s}" % self.href
-        return ''
+        values = {}
+        for k in self._repr_attrs:
+            val = getattr(self, k, None)
+            if val is None:
+                continue
+            if isinstance(val, six.text_type):
+                values[k] = repr(encode_string(val))
+            else:
+                values[k] = repr(val)
+
+        return "{%s}" % ', '.join(
+            ["'%s' : %s" % (k, v) for k, v in values.items()]
+        )
 
     def __init__(self, data=None, json_data=None, xml_data=None, wrapper=None):
         self._wrapper = wrapper or getattr(self, '_wrapper', False)
@@ -95,11 +114,15 @@ class Item(six.with_metaclass(MetaModel)):
         'Return a shallow copy.'
         return self.__class__(wrapper=self._wrapper, data=self)
 
-    # def as_dict(self):
-    #     """ Return current instance as a {k: val} dict """
-    #     attrs = [v.attr_name for v in self._attrs]
-    #     return {key: value for key, value in self.__dict__.items() if key in attrs}
-    #
+    def get(self, key, default=None):
+        'Return attribute value or default'
+        return getattr(self, key, default)
+
+    def as_dict(self):
+        """ Return current instance as a {k: val} dict """
+        attrs = [v.attr_name for v in self._attrs]
+        return {key: value for key, value in self.__dict__.items() if key in attrs}
+
     def __repr__(self):
         return "%s(%s)" % (type(self).__name__, self.__get_repr_info__())
 
@@ -116,7 +139,9 @@ class Item(six.with_metaclass(MetaModel)):
         for attr in self._attrs:
             self[attr.attr_name] = None
 
-        self.href = xml_data.find('d:href', NAMESPACES_MAP).text
+        self.href = decode_string(
+            unquote(xml_data.find('d:href', NAMESPACES_MAP).text)
+        )
         for propstat in xml_data.iter('{DAV:}propstat'):
             if propstat.find('d:status', NAMESPACES_MAP).text != self.SUCCESS_STATUS:
                 pass
@@ -143,13 +168,32 @@ class Item(six.with_metaclass(MetaModel)):
     def build_xml_propfind(cls, instr=None, filter_rules=None, use_default=False, fields=None):
         """see build_xml.build_propfind_datas
 
+        :param instr(str): you can use 'oc:filter-files' or 'd:propfind' (default)
+        :param filter_rules : a dict { namespace: {key : value } }
+        :param fields: a dict { namespace: [key…] } or a list of attr name
         :param use_default:   True to use all values specified in Model
         """
-        if use_default:
-            if not fields:
-                fields = {k: [] for k in NAMESPACES_MAP}
-                for attr in cls._attrs:
-                    fields[attr.ns].append(attr.xml_key)
+        def _build_fields_dict(only_required=False, attr_name_list=None):
+            _fields = {k: [] for k in NAMESPACES_MAP}
+            for attr in cls._attrs:
+                if only_required:
+                    if not attr.required:
+                        continue
+                if attr_name_list is not None:
+                    if attr.attr_name not in attr_name_list:
+                        continue
+                if attr.disabled:
+                    # warning message if in attr_name_list ?
+                    continue
+                _fields[attr.ns].append(attr.xml_key)
+            return _fields
+
+        if not fields:
+            fields = _build_fields_dict(only_required=(not use_default))
+        elif isinstance(fields, list):
+            fields = _build_fields_dict(attr_name_list=fields)
+        if not (fields or filter_rules):
+            return None
         return BuildXML.build_propfind_datas(instr=instr, filter_rules=filter_rules,
                                               fields=(fields or {}))
 

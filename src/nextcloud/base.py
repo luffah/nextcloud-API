@@ -50,25 +50,30 @@ class BaseApiWrapper(six.with_metaclass(MetaWrapper)):
         self._attrs = attrs or {}
         self._set_requester()
 
-    def _is_root_href(self, href):
-        return href == self.API_URL + '/'
+    @classmethod
+    def _is_root_href(cls, href):
+        return href == cls.API_URL + '/'
 
-    def get_objs_from_response(self, resp, one=False):
+    @classmethod
+    def get_objs_from_response(cls, resp, one=False, skip_url=None):
         """
         Get data or None given response
         :param resp: requester response
         :param one: requester response
         :returns: PropertySet or None
         """
+        resp_data = []
         if resp.data:
-            resp = resp.data
-            if self._is_root_href(resp[0].href):
-                resp = resp[1:]
-        else:
-            resp = []
+            resp_data = resp.data
+            if skip_url:
+                if resp_data[0].href == skip_url:
+                    resp_data = resp_data[1:]
+            else:
+                if cls._is_root_href(resp_data[0].href):
+                    resp_data = resp_data[1:]
         if one:
-            return resp[0] if resp else None
-        return resp
+            return resp_data[0] if resp_data else None
+        return resp_data
 
     def _default_get(self, varname, vals):
         """
@@ -128,6 +133,7 @@ class WebDAVApiWrapper(BaseApiWrapper):
         'COPY': [WebDAVCode.CREATED, WebDAVCode.NO_CONTENT],
         'MOVE': [WebDAVCode.CREATED, WebDAVCode.NO_CONTENT],
         'PUT': [WebDAVCode.CREATED],
+        'GET': [WebDAVCode.OK],
         'POST': [WebDAVCode.CREATED],
         'DELETE': [WebDAVCode.NO_CONTENT]
     }

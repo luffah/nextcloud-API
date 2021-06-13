@@ -6,12 +6,17 @@ import requests
 from .compat import encode_requests_password
 from .codes import ExternalApiCodes
 from .exceptions import (
-    NextCloudError, NextCloudConnectionError, NextCloudLoginError
+    NextCloudConnectionError, NextCloudLoginError
 )
 from .response import BaseResponse
 
 _LOGGER = logging.getLogger(__name__)
 
+
+class CustomRetry(requests.packages.urllib3.util.retry.Retry):
+
+    def get_backoff_time(self):
+        return 20.0
 
 # pylint: disable=useless-object-inheritance
 class Session(object):
@@ -25,7 +30,7 @@ class Session(object):
         self._set_credentials(user, password, auth)
         self.url = url.rstrip('/')
         session_kwargs = session_kwargs or {}
-        self._login_check = session_kwargs.pop('login_check', True)  # TODO False
+        self._login_check = session_kwargs.pop('on_session_login', False)
         self._session_kwargs = session_kwargs
 
     def _set_credentials(self, user, password, auth):
@@ -54,6 +59,7 @@ class Session(object):
 
         :returns: requests.Response
         """
+        # print(locals())
         try:
             if self.session:
                 ret = self.session.request(method=method, url=url, **kwargs)
@@ -82,46 +88,75 @@ class Session(object):
         :param client: object for any auth method
         :raises: HTTPResponseError in case an HTTP error status was returned
         """
-        # a = requests.adapters.HTTPAdapter(max_retries=3)
-
+        # To avoid deadlocks on "Resetting dropped connection"
+        adapter = requests.adapters.HTTPAdapter()
+        # adapter.max_retries = CustomRetry(status_forcelist=[ 502, 503, 504 ])
+        adapter.max_retries = requests.packages.urllib3.util.retry.Retry(
+            status_forcelist=[ 502, 503, 504 ]
+        )
+        #
         self.session = requests.Session()
-
-        # self.session.mount('https://', a)
-
+        #
+        self.session.mount('https://', adapter)
+        #
         for k in self._session_kwargs:
             setattr(self.session, k, self._session_kwargs[k])
 
         self._set_credentials(user, password, auth)
         self.session.auth = self.auth
-        if client and self._login_check:
-            self._check_login(client, retry=3)
+        if client:
+            login_check_func = self._login_check
+            if isinstance(login_check_func, str):
+                login_check_func = getattr(client, login_check_func)
+            if self._login_check:
+                self._check_login(login_check_func, retry=[20, 60, 20, 60])
 
-    def _check_login(self, client=None, retry=None):
-        def _raise(error):
-            if retry:
+    def _check_login(self, check_func, retry=None):
+        # :param retry: int (number of retries) or list of int (delays)
+        # There is max 6 attempts per minute before being blacklisted.
+        # Source:
+        #    https://help.nextcloud.com/t/master-password-retry-policy/110610
+        # Approximatelly:
+        #  if you wait 20 seconds, there is 1/3 chance of success
+        #  if you wait 1 minute, there is 100% chance of success
+        def _raise(retry, error):
+            is_retriable=(
+                isinstance(error.obj, requests.exceptions.ConnectionError)
+                or
+                isinstance(error.obj, requests.exceptions.SSLError)
+                or
+                isinstance(error.obj, requests.exceptions.MaxRetryError)
+                or (
+                    isinstance(nxc_error.obj, BaseResponse) and
+                    nxc_error.obj.status_code not in [
+                        ExternalApiCodes.NOT_AUTHORIZED,
+                        ExternalApiCodes.UNAUTHORIZED
+                    ])
+            )
+            if is_retriable and retry:
+                delay = 10
+                if isinstance(retry, list):
+                    delay, retry = (retry[0], retry[1:])
+                elif isinstance(retry, int):
+                    retry -= 1
+                else:
+                    retry = False
+                _LOGGER.warning('Retry session check (%s) in %s seconds',
+                                self.url, delay)
+                time.sleep(delay)
                 _LOGGER.warning('Retry session check (%s)', self.url)
-                return self._check_login(client, retry=retry - 1)
+                return self._check_login(client, retry=retry)
             self.logout()
             raise error
 
         try:
-            resp = client.get_user()
-            if not resp.is_ok:
+            if not check_func().is_ok:
                 raise NextCloudLoginError(
                     'Failed to login to NextCloud', self.url, resp)
-        except NextCloudError as nxc_error:
-            if isinstance(nxc_error.obj, requests.exceptions.ConnectionError):
-                time.sleep(1)  # delay on max retry cases
-                _raise(nxc_error)
-            elif isinstance(nxc_error.obj, requests.exceptions.SSLError):
-                _raise(nxc_error)
-            elif isinstance(nxc_error.obj, BaseResponse):
-                if nxc_error.obj.status_code not in [
-                        ExternalApiCodes.NOT_AUTHORIZED,
-                        ExternalApiCodes.UNAUTHORIZED
-                ]:
-                    _raise(nxc_error)
-            raise nxc_error
+        except NextCloudConnectionError as nxc_error:
+            _raise(retry, nxc_error)
+        except NextCloudLoginError as nxc_error:
+            _raise(retry, nxc_error)
         except Exception as any_error:
             self.logout()
             raise any_error

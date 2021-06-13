@@ -1,18 +1,12 @@
 
-This is Python wrapper for NextCloud's API had been made by…
+This python wrapper for NextCloud's API had been made by…
 
 Main contributors
 `````````````````
 - Matěj Týč `@matejak <https://github.com/matejak>` active from 2018
 - Danil Topchiy  `@danil-topchiy <https://github.com/danil-topchiy>` active 2018-2019
- 
-
-Refactoring contributors
-````````````````````````
-- Matěj Týč `@matejak <https://github.com/matejak>` active from 2018
-- Danil Topchiy  `@danil-topchiy <https://github.com/danil-topchiy>` active 2018-2019
 - luffah `@luffah <https://github.com/luffah>` active 2021
-
+ 
  
 Original code
 `````````````

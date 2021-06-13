@@ -16,21 +16,24 @@ Not implemented yet:
 #   see ../common/build_xml.py and ../api/model.py
 import re
 import os
-try:
-    import pathlib
-except ImportError:
-    import pathlib2 as pathlib
-
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from ..base import WebDAVApiWrapper
+from ..codes import WebDAVCode
 from ..exceptions import NextCloudError
 from ..api.model import Item
 from ..api.properties import NAMESPACES_MAP, DProp, OCProp, NCProp
-from ..common.value_parsing import (
-    timestamp_to_epoch_time,
-    datetime_to_timestamp
+from ..common.timestamping import (
+    timestamp_from_string,
+    datetime_from_string,
+    timestamp_from_datetime
 )
+from ..common.paths import sequenced_paths_list, split_path
+from ..compat import unquote
+
+
+class NextCloudUnexpectedMultiStatus(NextCloudError):
+    """ When you try to remove a folder that is not empty"""
 
 
 class NextCloudDirectoryNotEmpty(NextCloudError):
@@ -38,7 +41,21 @@ class NextCloudDirectoryNotEmpty(NextCloudError):
 
 
 class NextCloudFileConflict(NextCloudError):
-    """ When you try to create a File that alreay exists """
+    """ When you try to create a File that already exists """
+
+
+EXCEPTIONS = {
+    'default': {
+        WebDAVCode.CONFLICT: NextCloudFileConflict,
+        WebDAVCode.PRECONDITION_FAILED: NextCloudError,
+        WebDAVCode.ALREADY_EXISTS: NextCloudFileConflict,
+        WebDAVCode.NOT_AUTHENTICATED: NextCloudError,
+        WebDAVCode.NO_CONTENT: NextCloudError,
+    },
+    'MKCOL': {
+        WebDAVCode.MULTISTATUS: NextCloudUnexpectedMultiStatus,
+    }
+}
 
 
 class File(Item):
@@ -59,6 +76,7 @@ class File(Item):
     >>>
     >>> _list_rec(root)
     """
+    _repr_attrs = ['id', 'file_id', 'href']
 
     @staticmethod
     def _extract_resource_type(file_property):
@@ -67,25 +85,34 @@ class File(Item):
             return re.sub('{.*}', '', file_type[0].tag)
         return None
 
-    last_modified = DProp('getlastmodified')
+    last_modified = DProp('getlastmodified', required=True)
+
+    @property
+    def last_modified_datetime(self):
+        return datetime_from_string(self.last_modified)
+
     etag = DProp('getetag')
     content_type = DProp('getcontenttype')
-    resource_type = DProp('resourcetype',
+    resource_type = DProp('resourcetype', required=True,
                           parse_xml_value='_extract_resource_type')
     content_length = DProp('getcontentlength')
-    id = OCProp()
-    file_id = OCProp('fileid')
+    id = OCProp()  # id doesn't reveal file changes : fileid is good enough
+    file_id = OCProp('fileid', required=True, parse_value=int)
     favorite = OCProp()
-    comments_href = OCProp()
+    comments_href = OCProp(parse_value=unquote)
     comments_count = OCProp()
     comments_unread = OCProp()
     owner_id = OCProp()
     owner_display_name = OCProp()
     share_types = OCProp()
-    check_sums = OCProp('checksums')
     size = OCProp()
-    href = OCProp()
+    href = OCProp(parse_value=unquote)
     has_preview = NCProp()
+
+    # check_sums actually returns None
+    # see https://github.com/nextcloud/server/issues/6129
+    check_sums = OCProp('checksums', disabled=True)
+
 
     def isfile(self):
         """ say if the file is a file /!\\ ressourcetype property shall be loaded """
@@ -143,6 +170,23 @@ class File(Item):
         return self._wrapper.get_file(self._get_remote_path(path),
                                       all_properties=all_properties)
 
+    def fetch_file_content(self):
+        """
+        Download file content
+
+        Exception will be raised if file doesn't exist or is a directory
+
+        Returns:
+            File content
+        """
+        if self.isdir():
+            raise ValueError("This is a collection, please specify file path")
+        resp = self._wrapper.requester.download(
+            self._wrapper.client.user + self.get_relative_path())
+        if not resp.is_ok:
+            raise NextCloudError(resp.get_error_message(), resp.raw.request.url, resp)
+        return resp.data
+
     def list(self, subpath='', filter_rules=None, all_properties=False):
         """
         List folder (see WebDav wrapper)
@@ -175,12 +219,12 @@ class File(Item):
         :param local_filepath: path of the local file
         :param name: name of the new file
         :param timestamp (int): timestamp of upload file. If None, get time by local file.
-        :returns: True if success
         """
         resp = self._wrapper.upload_file(local_filepath,
                                          self._get_remote_path(name),
                                          timestamp=timestamp)
-        return resp.is_ok
+        if not resp.is_ok:
+            raise NextCloudError(resp.get_error_message())
 
     def upload_file_contents(self, file_contents, name=None, timestamp=None):
         """
@@ -193,18 +237,22 @@ class File(Item):
         resp = self._wrapper.upload_file_contents(file_contents,
                                                   self._get_remote_path(name),
                                                   timestamp=timestamp)
-        return resp.is_ok
+        if not resp.is_ok:
+            raise NextCloudError(resp.get_error_message())
 
-    def download(self, name=None, target_dir=None):
+    def download(self, path=None, target=None, overwrite=None):
         """
         Download file (see WebDav wrapper)
-        :param name: name of the new file
+        :param path: relative remote file path
+        :param target: path of the new file
+        :param overwrite: True if existing file shall be overwritten
         :returns: True if success
         """
-        path = self._get_remote_path(name)
-        target_path, _file_info = self._wrapper.download_file(path,
-                                                              target_dir=target_dir)
-        assert os.path.isfile(target_path), "Download failed"
+        path = self._get_remote_path(path)
+        target_path, _file_info = self._wrapper.download_file(
+            path, target=target, overwrite=overwrite)
+        if not os.path.isfile(target_path):
+            raise NextCloudError("Download failed")
         return target_path
 
     def isempty(self):
@@ -240,6 +288,17 @@ class WebDAV(WebDAVApiWrapper):
     """ WebDav API wrapper """
     API_URL = "/remote.php/dav/files"
 
+    @staticmethod
+    def _raise_exception(resp, fpath):
+        """ raise the exception defined in EXCEPTIONS dict """
+        code = resp.status_code
+        exception_class = EXCEPTIONS.get(
+            resp.raw.request.method, {}
+        ).get(
+            code, EXCEPTIONS['default'].get(code, NextCloudError)
+        )
+        raise exception_class(resp.get_error_message(), fpath, resp)
+
     def _get_path(self, path):
         if path:
             return '/'.join([self.client.user, path]).replace('//', '/')
@@ -260,60 +319,62 @@ class WebDAV(WebDAVApiWrapper):
         Returns:
             list of File objects
         """
+        # if not all_properties and not fields:
+        #     fields = ['file_id', 'resource_type']
         data = File.build_xml_propfind(
             use_default=all_properties,
             fields=fields
-        ) if (fields or all_properties) else None
+        )
         resp = self.requester.propfind(self._get_path(path),
                                        headers={'Depth': str(depth)},
                                        data=data)
         return File.from_response(resp, wrapper=self)
 
-    def download_file(self, path, target_dir=None):
+    def download_file(self, path, target=None, overwrite=None):
         """
-        Download file by path (for current user)
-        File will be saved to working directory
-        path argument must be valid file path
-        Modified time of saved file will be synced with the file properties in Nextcloud
+        Download file by path (for current user).
+        The timestamp of remote file is preserved.
 
         Exception will be raised if:
             * path doesn't exist,
             * path is a directory, or if
-            * file with same name already exists in working directory
+            * target file with same name already exists
 
         Args:
             path (str): file path
+            target (str): file (default is working directory)
+            overwrite (bool) : tell if existing file shall be overwritten
 
         Returns:
             a tuple (target_path, File object)
         """
-        if not target_dir:
-            target_dir = './'
-        filename = path.split('/')[(-1)] if '/' in path else path
+        if not target:
+            target = './'
+        if os.path.isdir(target):
+            filename = path.split('/')[(-1)] if '/' in path else path
+            target = os.path.join(target, filename)
         file_data = self.get_file(path)
         if not file_data:
             raise ValueError("Given path doesn't exist")
-        file_resource_type = file_data.resource_type
-        if file_resource_type == File.COLLECTION_RESOURCE_TYPE:
-            raise ValueError("This is a collection, please specify file path")
-        if filename in os.listdir(target_dir):
+        if not overwrite and os.path.isfile(target):
             raise ValueError(
-                "File with such name already exists in this directory")
-        filename = os.path.join(target_dir, filename)
-        res = self.requester.download(self._get_path(path))
-        with open(filename, 'wb') as f:
-            f.write(res.data)
+                "Target file with already already exists")
+        try:
+            res = file_data.fetch_file_content()
+            with open(target, 'wb') as f:
+                f.write(res)
+        except NextCloudError as e:
+            raise e
 
         # get timestamp of downloaded file from file property on Nextcloud
         # If it succeeded, set the timestamp to saved local file
         # If the timestamp string is invalid or broken, the timestamp is downloaded time.
-        file_timestamp_str = file_data.last_modified
-        file_timestamp = timestamp_to_epoch_time(file_timestamp_str)
+        file_timestamp = timestamp_from_string(file_data.last_modified)
         if isinstance(file_timestamp, int):
-            os.utime(filename, (
-                datetime_to_timestamp(datetime.now()),
+            os.utime(target, (
+                timestamp_from_datetime(datetime.now()),
                 file_timestamp))
-        return (filename, file_data)
+        return (target, file_data)
 
     def upload_file(self, local_filepath, remote_filepath, timestamp=None):
         """
@@ -345,47 +406,66 @@ class WebDAV(WebDAVApiWrapper):
         Returns:
             requester response
         """
-        return self.requester.put_with_timestamp(
+        resp = self.requester.put_with_timestamp(
             self._get_path(remote_filepath), data=file_contents, timestamp=timestamp)
+        return resp
 
-    def create_folder(self, folder_path):
+    def create_folder(self, folder_path, already_exists=False):
         """
         Create folder on Nextcloud storage
 
         Args:
-            folder_path (str): folder path
+            folder_path (str):   folder path
+            already_exists(bool): if it is ok when the file/folder already exists
 
         Returns:
             requester response
         """
-        return self.requester.make_collection(self._get_path(folder_path))
+        ret = self.requester.make_collection(self._get_path(folder_path))
+        if already_exists and not ret.is_ok:
+            if ret.status_code == WebDAVCode.ALREADY_EXISTS:
+                ret.is_ok = True
+        return ret
 
-    def assure_folder_exists(self, folder_path):
+    def ensure_folder_exists(self, folder_path, raise_on_error=False):
         """
         Create folder on Nextcloud storage, don't do anything if the folder already exists.
         Args:
             folder_path (str): folder path
         Returns:
-            requester response
+            bool
         """
-        self.create_folder(folder_path)
-        return True
+        resp = self.create_folder(folder_path, already_exists=True)
+        ret = resp.is_ok
+        if raise_on_error and not ret:
+            self._raise_exception(resp, folder_path)
+        return ret
 
-    def assure_tree_exists(self, tree_path):
+    def ensure_tree_exists(self, folder_tree,
+                           raise_on_error=False,
+                           exclude=None):
         """
-        Make sure that the folder structure on Nextcloud storage exists
+        Make sure that the folder structure on Nextcloud storage exists.
+
+        Note: for optimization, build the full tree here if you know the tree
+
         Args:
-            folder_path (str): The folder tree
+            folder_tree: the folder tree (str or list or dict)
+                         e.g. str 'foo/bar/A'
+                         e.g. list ['foo/bar','foo/bar/A'],
+                         e.g. dict {'foo': {'bar':{'A': {}}}
+            exclude:     a list of path to not create (assuming it exists)
         Returns:
             requester response
         """
-        tree = pathlib.PurePath(tree_path)
-        parents = list(tree.parents)
         ret = True
-        subfolders = parents[:-1][::-1] + [tree]
-        for subf in subfolders:
-            ret = self.assure_folder_exists(str(subf))
-
+        list_folders = sequenced_paths_list(folder_tree, exclude=exclude)
+        for subf in list_folders:
+            ret = self.ensure_folder_exists(
+                subf, raise_on_error=raise_on_error
+            )
+            if not ret:
+                break
         return ret
 
     def delete_path(self, path):
@@ -568,3 +648,9 @@ class WebDAV(WebDAVApiWrapper):
         """
         _app_root = '/'.join([self.API_URL, self.client.user])
         return href[len(_app_root):]
+
+
+# add method alt names for backward compat
+# Changed because "assure" is more sementically a test than a doing
+WebDAV.assure_folder_exists = WebDAV.ensure_folder_exists
+WebDAV.assure_tree_exists = WebDAV.ensure_tree_exists

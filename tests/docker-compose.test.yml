@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+      args:
+        NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION}
+        # GROUPFOLDERS_URL: ${GROUPFOLDERS_URL}
+        GROUPFOLDERS_ARCHIVE_NAME: ${GROUPFOLDERS_ARCHIVE_NAME}
+    networks:
+      backend:
+    ports:
+      - 8080:80
+    environment:
+      - SQLITE_DATABASE=nextcloud
+      - NEXTCLOUD_TRUSTED_DOMAINS=${NEXTCLOUD_HOSTNAME}
+      - NEXTCLOUD_ADMIN_USER
+      - NEXTCLOUD_ADMIN_PASSWORD
+
+  python-api:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    environment:
+      - NEXTCLOUD_VERSION
+      - NEXTCLOUD_HOSTNAME
+      - NEXTCLOUD_ADMIN_USER
+      - NEXTCLOUD_ADMIN_PASSWORD
+    networks:
+      backend:
+    volumes:
+      - ../:/usr/src/app
+
+networks:
+    backend:

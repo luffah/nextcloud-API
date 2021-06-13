@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
-from requests.utils import quote
+# from requests.utils import quote  # url are always unquotted
 from datetime import datetime
 
 from .base import BaseTestCase, LocalNxcUserMixin
 from nextcloud.api_wrappers import WebDAV
-from nextcloud.api_wrappers.webdav import timestamp_to_epoch_time, File
+from nextcloud.api_wrappers.webdav import timestamp_from_string, File
 
 
 class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
@@ -74,7 +74,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
 
         # create test file, and upload it as timestamp: Mon, 20 Jan 2020 20:41:00 GMT
         timestamp_str = "Mon, 20 Jan 2020 20:41:00 GMT"
-        timestamp = timestamp_to_epoch_time(timestamp_str)
+        timestamp = timestamp_from_string(timestamp_str)
         assert timestamp == 1579552860
         res = self.create_and_upload_file(file_name, file_content, timestamp)
 
@@ -118,7 +118,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
 
         # create test file with timestamp: Sun, 09 Sep 2001 01:46:40 GMT
         timestamp_str = "Sun, 09 Sep 2001 01:46:40 GMT"
-        timestamp = timestamp_to_epoch_time(timestamp_str)
+        timestamp = timestamp_from_string(timestamp_str)
         assert timestamp == 1000000000
 
         # create test file
@@ -173,7 +173,7 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
         assert res.raw.status_code == self.CREATED_CODE
 
         # test uploaded file can be found with list_folders
-        file_nextcloud_href = quote(os.path.join(WebDAV.API_URL, self.user_username, folder_name)) + "/"
+        file_nextcloud_href = os.path.join(WebDAV.API_URL, self.user_username, folder_name) + "/"
         folder_info = self.nxc_local.list_folders(path=folder_name)
         assert folder_info.is_ok
         assert len(folder_info.data) == 1
@@ -335,36 +335,36 @@ class TestWebDAV(LocalNxcUserMixin, BaseTestCase):
         assert len(res.data) == 1
         assert res.data[0]['href'] == file_nextcloud_href
 
-    def test_timestamp_to_epoch_time(self):
+    def test_timestamp_from_string(self):
         timestamp_str = "Thu, 01 Dec 1994 16:00:00 GMT"
-        timestamp_unix_time = timestamp_to_epoch_time(timestamp_str)
+        timestamp_unix_time = timestamp_from_string(timestamp_str)
         assert timestamp_unix_time == 786297600
         assert timestamp_str == datetime.utcfromtimestamp(timestamp_unix_time).strftime('%a, %d %b %Y %H:%M:%S GMT')
 
         timestamp_str = "Fri, 14 Jul 2017 02:40:00 GMT"
-        timestamp_unix_time = timestamp_to_epoch_time(timestamp_str)
+        timestamp_unix_time = timestamp_from_string(timestamp_str)
         assert timestamp_unix_time == 1500000000
         assert timestamp_str == datetime.utcfromtimestamp(timestamp_unix_time).strftime('%a, %d %b %Y %H:%M:%S GMT')
 
         # UTM timezone is invalid for WebDav
         timestamp_str = "Thu, 01 Dec 1994 16:00:00 UTM"
-        timestamp_unix_time = timestamp_to_epoch_time(timestamp_str)
+        timestamp_unix_time = timestamp_from_string(timestamp_str)
         assert timestamp_unix_time is None
         assert timestamp_unix_time != 786297600
 
         # RFC 850 (part of http-date) format is invalid for WebDav
         timestamp_str = "Sunday, 06-Nov-94 08:49:37 GMT"
-        timestamp_unix_time = timestamp_to_epoch_time(timestamp_str)
+        timestamp_unix_time = timestamp_from_string(timestamp_str)
         assert timestamp_unix_time is None
         assert timestamp_unix_time != 784111777
 
         # ISO 8601 is invalid for WebDav
         timestamp_str = "2007-03-01T13:00:00Z"
-        timestamp_unix_time = timestamp_to_epoch_time(timestamp_str)
+        timestamp_unix_time = timestamp_from_string(timestamp_str)
         assert timestamp_unix_time is None
         assert timestamp_unix_time != 1172754000
 
         # broken date string
         timestamp_str = " "
-        timestamp_unix_time = timestamp_to_epoch_time(timestamp_str)
+        timestamp_unix_time = timestamp_from_string(timestamp_str)
         assert timestamp_unix_time is None

@@ -24,8 +24,7 @@ class NextCloud(_NextCloud):
     def __init__(self, endpoint=None, user=None, password=None,
                  session_kwargs=None, **kwargs):
         session_kwargs = session_kwargs.copy() if session_kwargs else {}
-        session_kwargs.update({'verify': NEXTCLOUD_SSL_ENABLED,
-                               'login_check': False})
+        session_kwargs.update({'verify': NEXTCLOUD_SSL_ENABLED})
         super(NextCloud, self).__init__(
             endpoint=endpoint, user=user, password=password,
             session_kwargs=session_kwargs, **kwargs

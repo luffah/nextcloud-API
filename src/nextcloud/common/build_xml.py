@@ -54,8 +54,24 @@ def build_propfind_datas(instr=None, filter_rules=None, fields=None):
     if not instr:
         instr = 'd:propfind'
 
-    root = ET.Element(instr, XML_NAMESPACES_MAP)
-    props = _to_fields_list(fields or {})
+    _namespaces = XML_NAMESPACES_MAP
+    fields = fields or {}
+    filter_rules = filter_rules or {}
+    if fields or filter_rules:
+        # restrict namespaces
+        _namespaces = {}
+        for k in XML_NAMESPACES_MAP:
+            _k = k.split(':')[-1]
+            if (
+                    _k not in ['d', 'oc'] and
+                    bool(fields.get(_k, [])) and
+                    bool(filter_rules.get(_k, {}))
+            ):
+                continue
+            _namespaces[k] = XML_NAMESPACES_MAP[k]
+
+    root = ET.Element(instr, _namespaces)
+    props = _to_fields_list(fields)
     if props:
         prop_group = ET.SubElement(root, 'd:prop')
         for prop in props:
