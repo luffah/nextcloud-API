@@ -192,7 +192,7 @@ class Item(six.with_metaclass(MetaModel)):
             fields = _build_fields_dict(only_required=(not use_default))
         elif isinstance(fields, list):
             fields = _build_fields_dict(attr_name_list=fields)
-        if not fields or filter_rules:
+        if not (fields or filter_rules):
             return None
         return BuildXML.build_propfind_datas(instr=instr, filter_rules=filter_rules,
                                               fields=(fields or {}))

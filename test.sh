@@ -46,22 +46,43 @@ _check_nextcloud(){
   esac
 }
 
-_docker_compose(){ sudo docker-compose "$@"; }
+_fetch_group_folder_release(){
+  . ./.env
+  [ ! -f "${GROUPFOLDERS_ARCHIVE_NAME}" ] && wget ${GROUPFOLDERS_URL}
+}
+_install_group_folder(){
+  ret="$(_docker_compose exec --user www-data app /bin/bash -c "php occ app:enable groupfolders" | sed 's/\s*$//')"
+  echo ${ret}
+  if [ "${ret}" = "groupfolders enabled" ]; then
+    touch ../.test.ready
+  else
+    echo "the previous run seems to have failed, LET'S RETRY"
+    cd $RUN_DIR
+    _rerun docker:prepare
+  fi
+}
+
+
+DOCKER_COMPOSE_ARGS="-f docker-compose.test.yml"
+
+_docker_compose(){ sudo docker-compose ${DOCKER_COMPOSE_ARGS} "$@"; }
+
+_rerun(){ sh $0 $* ;}
 
 RUN_DIR="$PWD"
 
 case $1 in 
   docker)
     if [ ! -f .test.ready ]; then
-      sh $0 docker:prepare
+      _rerun docker:prepare
       sleep 3
     fi
-    sh $0 docker:run
+    _rerun docker:run
     echo "Are the tests succesful ?"
     echo "Maybe we can remove the test container now ? [y/N]"
     read _to_end
     if [ "${_to_end}" = "y" ]; then
-      sh $0 docker:end
+      _rerun docker:end
     else
       echo "Use '$0 docker:run' to run tests again."
       echo "Use '$0 docker:end' to clean the container."
@@ -70,25 +91,17 @@ case $1 in
   docker:prepare)
     echo "== Preparing tests =="
     cd tests
+    _fetch_group_folder_release
     _docker_compose up --build -d
-    until _docker_compose exec --user www-data app /bin/bash -c "mkdir -p /var/www/html/custom_apps && cp -RT /tmp/groupfolders /var/www/html/custom_apps/groupfolders"; do sleep 1; done
     sleep 3
-    ret="$(_docker_compose exec --user www-data app /bin/bash -c "php occ app:enable groupfolders" | sed 's/\s*$//')"
-    echo ${ret}
-    if [ "${ret}" = "groupfolders enabled" ]; then
-      touch ../.test.ready
-    else
-      echo "the previous run seems to have failed, LET'S RETRY"
-      cd $RUN_DIR
-      sh $0 docker:prepare
-    fi
+    _install_group_folder
     # pip3 install codecov
     ;;
   docker:run)
     echo "== Running tests =="
     cd tests
     # _docker_compose run --rm python-api python3 -m pytest --cov . --cov-report xml --cov-report term ..
-    find . -name '*.pyc' -delete
+    _docker_compose run --rm python-api find . -name '*.pyc' -delete
     _docker_compose run --rm python-api python3 -m pytest ..
     ;;
   docker:end)

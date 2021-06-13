@@ -62,8 +62,10 @@ def build_propfind_datas(instr=None, filter_rules=None, fields=None):
         _namespaces = {}
         for k in XML_NAMESPACES_MAP:
             _k = k.split(':')[-1]
-            if _k not in ['d', 'oc'] and (
-                    bool(fields.get(_k, [])) or bool(filter_rules.get(_k, {}))
+            if (
+                    _k not in ['d', 'oc'] and
+                    bool(fields.get(_k, [])) and
+                    bool(filter_rules.get(_k, {}))
             ):
                 continue
             _namespaces[k] = XML_NAMESPACES_MAP[k]

@@ -59,6 +59,7 @@ class Session(object):
 
         :returns: requests.Response
         """
+        # print(locals())
         try:
             if self.session:
                 ret = self.session.request(method=method, url=url, **kwargs)

@@ -29,6 +29,7 @@ from ..common.timestamping import (
     timestamp_from_datetime
 )
 from ..common.paths import sequenced_paths_list, split_path
+from ..compat import unquote
 
 
 class NextCloudUnexpectedMultiStatus(NextCloudError):
@@ -98,14 +99,14 @@ class File(Item):
     id = OCProp()  # id doesn't reveal file changes : fileid is good enough
     file_id = OCProp('fileid', required=True, parse_value=int)
     favorite = OCProp()
-    comments_href = OCProp()
+    comments_href = OCProp(parse_value=unquote)
     comments_count = OCProp()
     comments_unread = OCProp()
     owner_id = OCProp()
     owner_display_name = OCProp()
     share_types = OCProp()
     size = OCProp()
-    href = OCProp()
+    href = OCProp(parse_value=unquote)
     has_preview = NCProp()
 
     # check_sums actually returns None
