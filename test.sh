@@ -51,7 +51,7 @@ _fetch_group_folder_release(){
   [ ! -f "${GROUPFOLDERS_ARCHIVE_NAME}" ] && wget ${GROUPFOLDERS_URL}
 }
 _install_group_folder(){
-  ret="$(_docker_compose exec --user www-data app /bin/bash -c "php occ app:enable groupfolders" | sed 's/\s*$//')"
+  ret="$(_docker_exec "while ! php occ app:enable groupfolders; do continue; done" | sed 's/\s*$//')"
   echo ${ret}
   if [ "${ret}" = "groupfolders enabled" ]; then
     touch ../.test.ready
@@ -66,6 +66,9 @@ _install_group_folder(){
 DOCKER_COMPOSE_ARGS="-f docker-compose.test.yml"
 
 _docker_compose(){ sudo docker-compose ${DOCKER_COMPOSE_ARGS} "$@"; }
+_docker_exec(){
+  _docker_compose exec --user www-data app /bin/bash -c "$*"
+}
 
 _rerun(){ sh $0 $* ;}
 
@@ -75,7 +78,6 @@ case $1 in
   docker)
     if [ ! -f .test.ready ]; then
       _rerun docker:prepare
-      sleep 3
     fi
     _rerun docker:run
     echo "Are the tests succesful ?"
@@ -93,7 +95,6 @@ case $1 in
     cd tests
     _fetch_group_folder_release
     _docker_compose up --build -d
-    sleep 3
     _install_group_folder
     # pip3 install codecov
     ;;

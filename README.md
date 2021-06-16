@@ -55,3 +55,9 @@ Looking at the code docstrings is recommended.
 Significative changes will be reported in `CHANGELOG.md` file.
 
 Too, you can check out the original [nextcloud API documentation](https://nextcloud-api.readthedocs.io/en/latest/introduction.html), but the use could have changed.
+
+
+## Contribution
+
+### Pull Request
+According to the testing procedure, you shall fork and PR on branch `develop`.
