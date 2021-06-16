@@ -11,11 +11,7 @@ NEXTCLOUD_URL = "http://{}:80".format(os.environ['NEXTCLOUD_HOSTNAME'])
 NEXTCLOUD_USERNAME = os.environ.get('NEXTCLOUD_ADMIN_USER')
 NEXTCLOUD_PASSWORD = os.environ.get('NEXTCLOUD_ADMIN_PASSWORD')
 
-# True if you want to get response as JSON
-# False if you want to get response as XML
-to_js = True
-
-nxc = NextCloud(endpoint=NEXTCLOUD_URL, user=NEXTCLOUD_USERNAME, password=NEXTCLOUD_PASSWORD, json_output=to_js)
+nxc = NextCloud(endpoint=NEXTCLOUD_URL, user=NEXTCLOUD_USERNAME, password=NEXTCLOUD_PASSWORD)
 
 # Quick start
 nxc.get_users()

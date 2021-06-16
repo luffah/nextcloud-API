@@ -1,36 +1,57 @@
 # NextCloud Python api
 
-[![Build Status](https://travis-ci.org/EnterpriseyIntranet/nextcloud-API.svg?branch=master)](https://travis-ci.org/EnterpriseyIntranet/nextcloud-API)
-[![Documentation Status](https://readthedocs.org/projects/nextcloud-api/badge/?version=latest)](https://nextcloud-api.readthedocs.io/en/latest/?badge=latest)
-[![codecov](https://codecov.io/gh/EnterpriseyIntranet/nextcloud-API/branch/master/graph/badge.svg)](https://codecov.io/gh/EnterpriseyIntranet/nextcloud-API)
-
-
 ## Overview
 
-Python wrapper for NextCloud api
+Python wrapper for NextCloud's API.
 
-This is Python wrapper for NextCloud's API.
-With it you can manage your NextCloud instances from Python scripts.
+The lib tends to support most common features i.e. :
+
+* User provisioning
+* OCS Share
+* WebDAV (files)
+* Tags
+* Activity app
+* Notifications app
+* LDAP configuration
+* Capabilities
+* Group Folders
 
 Tested with :
-  * NextCloud 14, python 3.7 (automated test)
-  * NextCloud 20, python 2.7
-  * NextCloud 20, python 3.6
+
+* NextCloud 14, python 3.7 (automated test)
+* NextCloud 20, python 2.7
+* NextCloud 20, python 3.6
+
+The main lines:
+
+* `NextCloud(URL, auth=…)` provide you a connection manager. You can use it with `with … as nxc:` to open a session.
+* The session is the connection object that make the requests.
+* The requests are initiated by a requester associated to an API wrapper.
+* API wrappers are the definition of how to use the NextCloud REST API : it provide functions that will be attached to the `NextCloud` object.
+* Functions can return :
+    - Response object with attributes `is_ok`, `data`. If `is_ok` is False, you can use `get_error_message`.
+    - Data objects (File, Tag…) or None.
+* Data objects are useable as dict object or with attribute. They provide operations. If the operation fails, you'll get an exception.
+
+For quick start, check out [examples](examples) and the [unit tests directory](tests).
 
 
-## FAQ
+## Fork Change
+
+This version is a fork (mainly refactoring, fixes and optimization) of [nextcloud-API](https://github.com/EnterpriseyIntranet/nextcloud-API).
+
+#### Testing
+The integration to Travis and CodeCov provided by the original repository are lost.
+
+There is now 2 branches `develop` and `main`.
+All [tests](tests) are validated using `test.sh docker` before merging `develop` to `main`.
 
 
-#### Which APIs does it support ?
+#### Documentation
+The integration with readthedoc.io is lost.
+You still can build the documentation with Sphinx source.
 
-Check out the corresponding [nextcloud API documentation](https://nextcloud-api.readthedocs.io/en/latest/introduction.html#which-api-does-it-support) section.
+Looking at the code docstrings is recommended.
+Significative changes will be reported in `CHANGELOG.md` file.
 
-
-#### How do I use it?
-
-Check out [examples](examples) and also check out the [unit tests directory](tests).
-
-
-#### What do I do if it doesn't work?
-
-Don't run away and open a GitHub issue!
+Too, you can check out the original [nextcloud API documentation](https://nextcloud-api.readthedocs.io/en/latest/introduction.html), but the use could have changed.

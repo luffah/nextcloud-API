@@ -28,7 +28,7 @@ from ..common.timestamping import (
     datetime_from_string,
     timestamp_from_datetime
 )
-from ..common.paths import sequenced_paths_list, split_path
+from ..common.paths import sequenced_paths_list
 from ..compat import unquote
 
 
@@ -142,10 +142,14 @@ class File(Item):
     def dirname(self):
         """ dirname """
         _path = self._get_remote_path()
-        return '/'.join(_path.split('/')[:-2]) if _path.endswith('/') else '/'.join(_path.split('/')[:-1])
+        return (
+            '/'.join(_path.split('/')[:-2])
+            if _path.endswith('/')
+            else '/'.join(_path.split('/')[:-1])
+        )
 
-    def __eq__(self, b):
-        return self.href == b.href
+    def __eq__(self, file_data):
+        return self.href == file_data.href
 
     # MINIMAL SET OF CRUD OPERATIONS
     def get_folder(self, path=None, all_properties=False):
@@ -580,6 +584,8 @@ class WebDAV(WebDAVApiWrapper):
         """
         Fetch asked properties from a file path.
 
+        (Deprecated: get_file(path, fields=[attributes names] almost do the same)
+
         Args:
             path (str): file or folder path to make favorite
             field (str): field name
@@ -607,7 +613,7 @@ class WebDAV(WebDAVApiWrapper):
 
         return resp
 
-    def get_file(self, path, all_properties=False):
+    def get_file(self, path, all_properties=False, fields=None):
         """
         Return the File object associated to the path
 
@@ -615,13 +621,13 @@ class WebDAV(WebDAVApiWrapper):
         :returns: File object or None
         """
         resp = self.client.list_folders(
-            path, all_properties=all_properties, depth=0)
+            path, all_properties=all_properties, fields=fields, depth=0)
         if resp.is_ok:
             if resp.data:
                 return resp.data[0]
         return None
 
-    def get_folder(self, path=None, all_properties=False):
+    def get_folder(self, path=None, all_properties=False, fields=None):
         """
         Return the File object associated to the path
         If the file (folder or 'collection') doesn't exists, create it.
@@ -629,7 +635,7 @@ class WebDAV(WebDAVApiWrapper):
         :param path: path to the file/folder, if empty use root
         :returns: File object
         """
-        fileobj = self.get_file(path, all_properties=all_properties)
+        fileobj = self.get_file(path, all_properties=all_properties, fields=fields)
         if fileobj:
             if not fileobj.isdir():
                 raise NextCloudFileConflict(fileobj.href)
