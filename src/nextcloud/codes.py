@@ -17,7 +17,10 @@ class ShareType:
     USER = 0
     GROUP = 1
     PUBLIC_LINK = 3
+    EMAIL = 4
     FEDERATED_CLOUD_SHARE = 6
+    CIRCLE = 7
+    TALK_CONVERSATION = 10
 
 
 class Permission:
