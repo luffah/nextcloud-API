@@ -101,3 +101,17 @@ class GroupFolders(base.OCSv1ApiWrapper):
         """
         url = "/".join([str(fid), "mountpoint"])
         return self.requester.post(url, data={"mountpoint": mountpoint})
+
+    def manage_acl(self, fid, uid, type_="user", addacl=1):
+        """
+        Grant/Remove a group or user the ability to manage a groupfolders' advanced permissions
+
+        :param fid (int/str): group folder id
+        :param uid (str): user id or group id
+        :param type_ (str): "user" or "group"
+        :param addacl (int): 0 to delete ACL, 1 to add ACL
+        :returns:  requester response
+        """
+        url = "/".join([str(fid), "manageACL"])
+        data = {"mappingType": type_, "manageAcl": addacl, "mappingId": uid}
+        return self.requester.post(url, data=data)

@@ -136,3 +136,46 @@ class TestGroupFolders(BaseTestCase):
 
         # clear
         self.clear(nxc=self.nxc, group_ids=[group_id], group_folder_ids=[group_folder_id])
+
+    def test_manage_acl(self):
+        # create group to share with
+        group_id = 'test_folders_' + self.get_random_string(length=4)
+        self.nxc.add_group(group_id)
+
+        # create a user to manage advanced permissions
+        username = self.create_new_user("folder_manager")
+
+        # create new group folder
+        folder_mount_point = "test_folder_advanced_permissions_" + self.get_random_string(length=4)
+        res = self.nxc.create_group_folder(folder_mount_point)
+        assert res.is_ok
+        group_folder_id = res.data['id']
+
+        # add new group to folder
+        self.nxc.grant_access_to_group_folder(group_folder_id, group_id)
+        # assert permissions is ALL by default
+        res = self.nxc.get_group_folder(group_folder_id)
+        assert int(res.data['quota']) == QUOTA_UNLIMITED
+
+        # define manager
+        self.nxc.manage_acl(group_folder_id, username)
+        # XXX We have to wait for commit https://github.com/nextcloud/groupfolders/commit/1c3874e0b980
+        #res = self.nxc.get_group_folder(group_folder_id)
+        # assert username in res.data["manage"]
+
+        res = self.nxc.get_group_folders()
+        assert str(group_folder_id) in res.data
+        assert username in res.data[str(group_folder_id)]["manage"]
+        assert res.data[str(group_folder_id)]["manage"][username]["type"] == "user"
+
+        # set permissions
+        new_permission = Permission.READ + Permission.CREATE
+        res = self.nxc.set_permissions_to_group_folder(group_folder_id, group_id, new_permission)
+        assert res.is_ok
+        assert res.data is True
+        # check if permissions changed
+        res = self.nxc.get_group_folder(group_folder_id)
+        assert str(res.data['groups'][group_id]) == str(new_permission)
+
+        # clear
+        self.clear(nxc=self.nxc, group_ids=[group_id], group_folder_ids=[group_folder_id])
