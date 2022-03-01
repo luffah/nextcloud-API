@@ -102,6 +102,16 @@ class GroupFolders(base.OCSv1ApiWrapper):
         url = "/".join([str(fid), "mountpoint"])
         return self.requester.post(url, data={"mountpoint": mountpoint})
 
+    def toggle_acl(self, fid, state=1):
+        """
+        Enable∕disable advanced ACL on given group folder
+
+        :param fid (int/str): group folder id
+        :param state (int): 1 for enable, 0 for disable
+        """
+        url = "/".join([str(fid), "acl"])
+        return self.requester.post(url, data={"acl": state})
+
     def manage_acl(self, fid, uid, type_="user", addacl=1):
         """
         Grant/Remove a group or user the ability to manage a groupfolders' advanced permissions
