@@ -168,7 +168,7 @@ class TestGroupFolders(BaseTestCase):
         assert res.data[str(group_folder_id)]["manage"][username]["type"] == "user"
 
         # revoke advanced ACL
-        self.nxc.manage_acl(group_folder_id, username, addacl=0)
+        self.nxc.manage_acl(group_folder_id, username, manage_acl=0)
         # XXX We have to wait for commit https://github.com/nextcloud/groupfolders/commit/1c3874e0b980
         #res = self.nxc.get_group_folder(group_folder_id)
         # assert username not in res.data["manage"]
@@ -201,7 +201,7 @@ class TestGroupFolders(BaseTestCase):
         assert int(res.data['quota']) == QUOTA_UNLIMITED
 
         # grant advanced ACL
-        self.nxc.manage_acl(group_folder_id, admin_group_id, type_="group")
+        self.nxc.manage_acl(group_folder_id, admin_group_id, mapping_type="group")
         # XXX We have to wait for commit https://github.com/nextcloud/groupfolders/commit/1c3874e0b980
         #res = self.nxc.get_group_folder(group_folder_id)
         # assert admin_group_id in res.data["manage"]
@@ -211,7 +211,7 @@ class TestGroupFolders(BaseTestCase):
         assert res.data[str(group_folder_id)]["manage"][admin_group_id]["type"] == "group"
 
         # revoke advanced ACL
-        self.nxc.manage_acl(group_folder_id, admin_group_id, type_="group", addacl=0)
+        self.nxc.manage_acl(group_folder_id, admin_group_id, mapping_type="group", manage_acl=0)
         # XXX We have to wait for commit https://github.com/nextcloud/groupfolders/commit/1c3874e0b980
         #res = self.nxc.get_group_folder(group_folder_id)
         # assert admin_group_id not in res.data["manage"]
@@ -239,7 +239,7 @@ class TestGroupFolders(BaseTestCase):
         res = self.nxc.get_group_folder(group_folder_id)
         assert int(res.data['quota']) == QUOTA_UNLIMITED
 
-        self.nxc.toggle_acl(group_folder_id, state=1)
+        self.nxc.toggle_acl(group_folder_id, acl=1)
         # XXX We have to wait for commit https://github.com/nextcloud/groupfolders/commit/1c3874e0b980
         #res = self.nxc.get_group_folder(group_folder_id)
         # assert admin_group_id not in res.data["manage"]
@@ -247,7 +247,7 @@ class TestGroupFolders(BaseTestCase):
         assert str(group_folder_id) in res.data
         assert "1" in res.data[str(group_folder_id)]["acl"]
 
-        self.nxc.toggle_acl(group_folder_id, state=0)
+        self.nxc.toggle_acl(group_folder_id, acl=0)
         # XXX We have to wait for commit https://github.com/nextcloud/groupfolders/commit/1c3874e0b980
         #res = self.nxc.get_group_folder(group_folder_id)
         # assert admin_group_id not in res.data["manage"]
