@@ -29,6 +29,7 @@ class Session(object):
         self.user = None
         self._set_credentials(user, password, auth)
         self.url = url.rstrip('/')
+        self.login_url = self.url
         session_kwargs = session_kwargs or {}
         self._login_check = session_kwargs.pop('on_session_login', False)
         self._session_kwargs = session_kwargs
@@ -142,9 +143,9 @@ class Session(object):
                 else:
                     retry = False
                 _LOGGER.warning('Retry session check (%s) in %s seconds',
-                                self.url, delay)
+                                self.login_url, delay)
                 time.sleep(delay)
-                _LOGGER.warning('Retry session check (%s)', self.url)
+                _LOGGER.warning('Retry session check (%s)', self.login_url)
                 return self._check_login(client, retry=retry)
             self.logout()
             raise error
@@ -152,7 +153,7 @@ class Session(object):
         try:
             if not check_func().is_ok:
                 raise NextCloudLoginError(
-                    'Failed to login to NextCloud', self.url, resp)
+                    'Failed to login to NextCloud', self.login_url, resp)
         except NextCloudConnectionError as nxc_error:
             _raise(retry, nxc_error)
         except NextCloudLoginError as nxc_error:
