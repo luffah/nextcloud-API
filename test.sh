@@ -75,6 +75,15 @@ _rerun(){ sh $0 $* ;}
 RUN_DIR="$PWD"
 
 case $1 in 
+  docker*)
+    if ! which docker-compose 2> /dev/null; then
+      echo "docker-compose is missing"
+      exit 1
+    fi
+    ;;
+esac
+
+case $1 in 
   docker)
     if [ ! -f .test.ready ]; then
       _rerun docker:prepare
