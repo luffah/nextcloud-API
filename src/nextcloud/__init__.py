@@ -52,6 +52,7 @@ class NextCloud(object):
             url=endpoint, user=user, password=password, auth=auth,
             session_kwargs=session_kwargs
         )
+        #FIXME see base & requester
         # @FIX_API_URL fix api url for case nextcloud is not on server root {{
         url_parts = re.match(r"^((https?://)?[^/]*)(/.*)?", self.session.url)
         (server_part_url, api_url_base) = (url_parts.group(1), url_parts.group(3))
@@ -60,8 +61,10 @@ class NextCloud(object):
         # }}
         for functionality_class in API_WRAPPER_CLASSES:
             # @FIX_API_URL {{
+            if not getattr(functionality_class, '_ORIG_API_URL', False):
+                functionality_class._ORIG_API_URL = functionality_class.API_URL
             if api_url_base:
-                functionality_class.API_URL = api_url_base + functionality_class.API_URL
+                functionality_class.API_URL = api_url_base + functionality_class._ORIG_API_URL
             # }}
             functionality_instance = functionality_class(self)
             for potential_method in dir(functionality_instance):

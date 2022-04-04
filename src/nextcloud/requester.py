@@ -64,6 +64,7 @@ class Requester(object):
     @property
     def api_url(self):
         """ The sub url associated to the requester """
+        #FIXME may change according to server url ?
         return self.wrapper.API_URL
 
     @property
