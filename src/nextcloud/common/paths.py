@@ -32,9 +32,9 @@ def sequenced_paths_list(folder_paths, exclude=None):
         list_paths = nodes_from_tree(build_tree(folder_paths))
     elif isinstance(folder_paths, dict):
         list_paths = nodes_from_tree(folder_paths)
-    return _remove_excluded(list_paths, exclude_list) if exclude else list_paths
+    return _remove_excluded(list_paths, exclude) if exclude else list_paths
 
-def _remove_excluded(list_path, exclude_list):
+def _remove_excluded(list_paths, exclude_list):
     return [p for p in list_paths if p not in exclude_list]
 
 def build_tree(paths):

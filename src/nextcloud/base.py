@@ -50,6 +50,7 @@ class BaseApiWrapper(six.with_metaclass(MetaWrapper)):
         self._attrs = attrs or {}
         self._set_requester()
 
+    #FIXME move as nested method in get_objs_from_response
     @classmethod
     def _is_root_href(cls, href):
         return href == cls.API_URL + '/'

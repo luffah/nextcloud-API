@@ -9,6 +9,7 @@ from nextcloud import base
 
 class GroupFolders(base.OCSv1ApiWrapper):
     """ GroupFolders API wrapper """
+
     API_URL = "/apps/groupfolders/folders"
     JSON_ABLE = False
 
@@ -101,3 +102,31 @@ class GroupFolders(base.OCSv1ApiWrapper):
         """
         url = "/".join([str(fid), "mountpoint"])
         return self.requester.post(url, data={"mountpoint": mountpoint})
+
+    def toggle_acl(self, fid, acl=1):
+        """
+        Enable∕disable advanced ACL on given group folder
+
+        :param fid (int/str): group folder id
+        :param acl (int): 1 for enable, 0 for disable
+        """
+        url = "/".join([str(fid), "acl"])
+        return self.requester.post(url, data={"acl": acl})
+
+    def manage_acl(self, fid, mapping_id, mapping_type="user", manage_acl=1):
+        """
+        Grant/Remove a group or user the ability to manage a groupfolders' advanced permissions
+
+        :param fid (int/str): group folder id
+        :param mapping_id (str): user id or group id
+        :param mapping_type (str): "user" or "group"
+        :param manage_acl (int): 0 to delete ACL, 1 to add ACL
+        :returns:  requester response
+        """
+        url = "/".join([str(fid), "manageACL"])
+        data = {
+            "mappingType": mapping_type,
+            "manageAcl": manage_acl,
+            "mappingId": mapping_id,
+        }
+        return self.requester.post(url, data=data)
