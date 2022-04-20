@@ -12,6 +12,14 @@ class Share(base.OCSv2ApiWrapper):
     """ Share API wrapper """
     API_URL = "/ocs/v2.php/apps/files_sharing/api/v1"
     LOCAL = "shares"
+    SHARE_WITH_ENABLED_SHARE_TYPES = [
+        ShareType.USER,
+        ShareType.GROUP,
+        ShareType.EMAIL,
+        ShareType.CIRCLE,
+        ShareType.FEDERATED_CLOUD_SHARE,
+        ShareType.TALK_CONVERSATION
+    ]
 
     def get_local_url(self, additional_url=""):
         if additional_url:
@@ -34,7 +42,7 @@ class Share(base.OCSv2ApiWrapper):
         if (
             path is None or not isinstance(share_type, int) or (
                 share_with is None and
-                share_type in [ShareType.GROUP, ShareType.USER, ShareType.FEDERATED_CLOUD_SHARE]
+                share_type in Share.SHARE_WITH_ENABLED_SHARE_TYPES
             )
         ):
             return False
@@ -106,7 +114,8 @@ class Share(base.OCSv2ApiWrapper):
             public_upload = "true"
 
         data = {"path": path, "shareType": share_type}
-        if share_type in [ShareType.GROUP, ShareType.USER, ShareType.FEDERATED_CLOUD_SHARE]:
+
+        if share_type in self.SHARE_WITH_ENABLED_SHARE_TYPES:
             data["shareWith"] = share_with
         if public_upload:
             data["publicUpload"] = public_upload
