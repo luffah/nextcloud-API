@@ -129,13 +129,14 @@ class Share(base.OCSv2ApiWrapper):
         return self.requester.delete(self.get_local_url(sid))
 
     def update_share(self, sid,
-                     permissions=None, password=None, public_upload=None, expire_date=""):
+                     permissions=None, hide_download=None, password=None, public_upload=None, expire_date=""):
         """
         Update a given share, only one value can be updated per request
 
         Args:
             sid (str): share id
             permissions (int): sum of selected Permission attributes
+            hide_download (bool): bool, allow to show download button (true/false)
             password (str): password to protect public link Share with
             public_upload (bool): bool, allow public upload to a public shared folder (true/false)
             expire_date (str): set an expire date for public link shares. Format: ‘YYYY-MM-DD’
@@ -145,18 +146,19 @@ class Share(base.OCSv2ApiWrapper):
         """
         params = dict(
             permissions=permissions,
+            hideDownload=hide_download,
             password=password,
             expireDate=expire_date
         )
         if public_upload:
             params["publicUpload"] = "true"
-        if public_upload is False:
+        else:
             params["publicUpload"] = "false"
 
-        # check if only one param specified
-        specified_params_count = sum([int(bool(each)) for each in params.values()])
-        if specified_params_count > 1:
-            raise ValueError("Only one parameter for update can be specified per request")
+        if hide_download:
+            params["hideDownload"] = "true"
+        else:
+            params["hideDownload"] = "false"
 
         url = self.get_local_url(sid)
         return self.requester.put(url, data=params)
