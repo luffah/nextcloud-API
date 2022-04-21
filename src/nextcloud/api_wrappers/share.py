@@ -152,7 +152,7 @@ class Share(base.OCSv2ApiWrapper):
         )
         if public_upload:
             params["publicUpload"] = "true"
-        if public_upload is False:
+        else:
             params["publicUpload"] = "false"
 
         if hide_download:
