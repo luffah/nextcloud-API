@@ -29,7 +29,7 @@ with NextCloud(
     # list folder with additionnal infos (the owner, if the file is a favorite…)
     pprint(nxc.list_folders('/', all_properties=True).data)
     # list folder content of another user
-    pprint(nxc.with_auth(
+    pprint(nxc._with_auth(
         user="test",
         password="test_password"
         ).list_folders('/').data)
